@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """
+Principal file containing the ImageRadiancei360 class to transform raw insta360 One digital values
+(red, green, blue bands) into radiance angular distribution.
 
 """
 
 # Module importation
 import os
+import glob
 import h5py
 import string
 import deepdish
@@ -21,83 +24,11 @@ class ImageRadiancei360(ProcessImage):
     """
     Class to build radiance map from Insta360 ONE images
     """
-    # def __init__(self, image_path, medium):
-    #
-    #     # Calibration files
-    #     self.base_path = os.path.dirname(__file__)
-    #     matlab_path = "/Users/raphaellarouche/Documents/MATLAB/radiance_cam_insta360/"
-    #
-    #     # FoV
-    #     self.medium = medium.lower()
-    #     self.fov = self.define_field_of_view()
-    #
-    #     # Geometric calibration
-    #     self.geometric_close, self.geometric_far = self.open_geometric_calibration()
-    #
-    #     # Absolute radiance coefficients
-    #     self.cl_close = self.open_calibrations("lens-close/20200909/cal-coefficients", calibration="absolute")
-    #     self.cl_far = self.open_calibrations("lens-far/20200909/cal-coefficients", calibration="absolute")
-    #
-    #     # Immersion factor
-    #     self.ifactor_close = self.open_calibrations("lens-close/20200911/immersion", calibration="immersion")
-    #
-    #     # # Absolute radiance coeffs
-    #     # with h5py.File(self.base_path + "/calibrations/absolute-spectral-radiance/calibrationfiles/absolute_radiance.h5") as hf_abs:
-    #     #     self.cl_close = hf_abs["lens-close/20200909/cal-coefficients"][:]
-    #     #     self.cl_far = hf_abs["lens-far/20200909/cal-coefficients"][:]
-    #
-    #     # # Immersion factor
-    #     # with h5py.File(self.base_path + "/calibrations/immersion-factor/calibrationfiles/immersion_factor.h5") as hfrel:
-    #     #     self.ifactor_close = hfrel["lens-close/20200911/immersion"][:]
-    #
-    #     if medium.lower() == "air":
-    #
-    #         # # Geometric calibration
-    #         # geometric_close = MatlabGeometric(self.base_path + "/calibrations/geometric-calibration/calibrationfiles_air/FishParamsClose_04_16_2019.mat")
-    #         # geometric_far = MatlabGeometric(self.base_path + "/calibrations/geometric-calibration/calibrationfiles_air/FishParamsFar_04_16_2019.mat")
-    #
-    #         # Roll-off calibration
-    #         fit_roll_close = spio.loadmat(matlab_path + "characterization_rolloff/calibration_rolloff_files_air/CFitROffClose_03_21_2019.mat")
-    #         # Roll-off far
-    #         fit_roll_far = spio.loadmat(matlab_path + "characterization_rolloff/calibration_rolloff_files_air/CFitROffFar_03_21_2019.mat")
-    #
-    #     elif medium.lower() == "water":
-    #
-    #         # Geometric calibration
-    #         # geocalib_close = deepdish.io.load(self.base_path + "/calibrations/geometric-calibration/calibrationfiles/"
-    #         #                                               "geometric-calibration-water.h5", "/lens-close/20200730_112353/")
-    #         # geocalib_far = deepdish.io.load(self.base_path + "/calibrations/geometric-calibration/calibrationfiles_mengine/"
-    #         #                                              "geometric-calibration-water.h5", "/lens-far/20200730_143716/")
-    #         # geometric_close = {}
-    #         # geometric_far = {}
-    #         # for k in geocalib_close["fp"].keys():
-    #         #     geometric_close[k] = MatlabGeometricMengine(geocalib_close["fp"][k], geocalib_close["ierror"][k])
-    #         #     geometric_far[k] = MatlabGeometricMengine(geocalib_far["fp"][k], geocalib_far["ierror"][k])
-    #
-    #         # Roll-off calibration
-    #         with h5py.File(self.base_path + "/calibrations/roll-off/calibrationfiles/rel_illumination_w.h5") as hfrel:
-    #             self.rolloff_close = hfrel["lens-close/20190501/fit-coefficients"][:]
-    #             self.rolloff_far = hfrel["lens-close/20190501/fit-coefficients"][:]
-    #
-    #     else:
-    #         raise ValueError("Not a valid argument for medium. Should be either water of air.")
-    #
-    #     # Attributes
-    #     self.im_original, self.metadata = self._readDNG_np(image_path)  # From ProcessImage class
-    #     self.im = self.im_original.copy().astype(float)
-    #
-    #     self.rad_c, self.zen_c, self.az_c = self.get_band_angular_coord(self.geometric_close)
-    #     self.rad_f, self.zen_f, self.az_f = self.get_band_angular_coord(self.geometric_far)
-    #
-    #     # Radiance map (attributes to be defined later)
-    #     self.zenith_mesh = np.array([])
-    #     self.azimuth_mesh = np.array([])
-    #     self.mappedradiance = np.array([])
 
     def __init__(self, image_path, medium):
 
         # Calibration files
-        self.base_path = os.path.dirname(__file__)
+        self.base_path = os.path.dirname(os.path.dirname(__file__))
 
         # FoV
         self.medium = medium.lower()
@@ -157,14 +88,14 @@ class ImageRadiancei360(ProcessImage):
 
     def open_rolloff_calibration(self, tag):
         """
-
+        Open roll-off calibration stored inside hdf5 file format.
         :return:
         """
 
         if self.medium.lower() == "air":
-            path_tf = self.base_path + "/calibrations/roll-off/calibrationfiles/rolloff_water.h5"
-        elif self.medium.lower() == "waster":
-            path_tf = self.base_path + "/calibrations/roll-off/calibrationfiles/rolloff_water.h5"
+            path_tf = self.base_path + "/calibrations/roll-off/calibrationfiles/rolloff_w.h5"
+        elif self.medium.lower() == "water":
+            path_tf = self.base_path + "/calibrations/roll-off/calibrationfiles/rolloff_w.h5"
         else:
             raise ValueError("Invalid name for medium. Should be 'air' or 'water'.")
 
@@ -174,7 +105,7 @@ class ImageRadiancei360(ProcessImage):
 
     def open_calibrations(self, tag, calibration="absolute"):
         """
-        Open all other calibration than geometric. So absolute radiance calibration, immersion factor and roll-off.
+        Open all other calibration. So absolute radiance calibration, immersion factor and roll-off.
         :return:
         """
 
@@ -204,7 +135,7 @@ class ImageRadiancei360(ProcessImage):
         else:
             self.dark_correction_image_plane()
 
-        # Normalization
+        # Normalization by integration time and gain
         self.normalisation()
 
         # Roll-off
@@ -219,7 +150,7 @@ class ImageRadiancei360(ProcessImage):
 
     def dark_correction(self):
         """
-        Method to remove dark noise.
+        Method to remove dark noise using the stored value in the tif metadata.
         :return:
         """
 
@@ -271,7 +202,7 @@ class ImageRadiancei360(ProcessImage):
 
     def rolloff_correction(self):
         """
-
+        Roll-off correction for each spectral band.
         :return:
         """
         if len(self.im.shape) == 3:
@@ -306,7 +237,7 @@ class ImageRadiancei360(ProcessImage):
 
     def absolute_radiance(self):
         """
-
+        Apply absolute spectral radiance calibration coefficient to the digital numbers of each spectral band.
         :return:
         """
 
@@ -671,6 +602,8 @@ class ImageRadiancei360(ProcessImage):
 
 if __name__ == "__main__":
 
-    im_rad = ImageRadiancei360("test", "water")
+    oden_data_list = glob.glob("/Volumes/MYBOOK/data-i360/field/oden-08312018/IMG*.dng")
+
+    im_rad = ImageRadiancei360(oden_data_list[10], "water")
 
     plt.show()

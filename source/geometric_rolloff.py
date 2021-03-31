@@ -319,8 +319,6 @@ class MatlabGeometric(OpenMatlabFiles):
         # Axe 2
         ax2.scatter(rmap.ravel(), residuals.ravel(), marker=mark, s=8, edgecolor=cl, facecolor="none", label="{0} acquisitions, residuals median: {1:.3f}˚".format(Nim, np.median(residuals)))
         ax2.set_yscale("log")
-        #ax2.set_ylim((0.00001, 10))
-        #ax2.set_xlim((-5, 355))
 
         ax2.set_xlabel(r"Radial distance $r$ [px]")
         ax2.set_ylabel(r"$\theta$ residuals [˚]")
@@ -456,7 +454,7 @@ class MatlabGeometricMengine(MatlabGeometric):
         print("Mean reprojection error: {0:.3f} px".format(self.fisheye_params["MeanReprojectionError"]))
 
 
-class RollOffFunctions(ProcessImage):
+class RolloffFunctions(ProcessImage):
     """
 
     """
@@ -542,7 +540,7 @@ class RollOffFunctions(ProcessImage):
         im_op = im_op.astype(float)
 
         # Read noise removal
-        im_op -= float(str(metadata["Image Tag 0xC61A"]))
+        im_op -= float(str(metadata["Image BlackLevel"]))
 
         # Downsampling
         im_dws = self.dwnsampling(im_op, "RGGB", ave=True)
@@ -576,6 +574,47 @@ class RollOffFunctions(ProcessImage):
         bin = norm <= radius
 
         return bin, image[bin]
+
+    def rolloff_curvefit(self, angles, rolloff):
+        """
+        Curve fit for roll-off.
+
+        :param angles:
+        :param rolloff:
+        :return:
+        """
+
+        popt, pcov = curve_fit(self.rolloff_polynomial, angles, rolloff)
+        rsquared, perr = self.rsquare(self.rolloff_polynomial, popt, pcov, angles, rolloff)
+
+        return popt, pcov, rsquared, perr
+
+    def rsquare(self, func, popt, covmat, x, y):
+        """
+
+        :param func:
+        :param popt:
+        :param covmat:
+        :param x:
+        :param y:
+        :return:
+        """
+        # Std of coefficient parameters
+        perr = np.sqrt(np.diag(covmat))
+
+        # Rsquare
+        residuals = y - func(x, *popt)
+        rsquared = 1 - np.sum(residuals ** 2) / np.sum((y - np.mean(y)) ** 2)
+
+        # Display results
+        print("rsquared = {0:.8f}".format(rsquared))
+        res = ""
+        param = func.__code__.co_varnames
+        for i in zip(param[1:], popt, perr):
+            res += "%s: %.4E (%.4E)\n" % i
+        print(res)
+
+        return rsquared, perr
 
 
 if __name__ == "__main__":
