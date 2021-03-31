@@ -12,6 +12,8 @@ import h5py
 import string
 import deepdish
 import numpy as np
+from scipy import integrate
+import scipy.interpolate
 import matplotlib.pyplot as plt
 
 # Other module
@@ -59,6 +61,7 @@ class ImageRadiancei360(ProcessImage):
         self.zenith_mesh = np.array([])
         self.azimuth_mesh = np.array([])
         self.mappedradiance = np.array([])
+        self.mapped_radiance_4pi = np.array([])
 
     def open_geometric_calibration(self):
         """
@@ -437,6 +440,75 @@ class ImageRadiancei360(ProcessImage):
         else:
             raise ValueError("Build radiance map before any integration.")
 
+    def irradiance(self, zenimin, zenimax, planar=True):
+        """
+        Estimate irradiance from the radiance angular distribution. By default, it calculates the planar irradiance.
+        By setting the parameter planar to false, the scalar irradiance is computed. Zenimin = 0˚ and Zenimax = 90˚ gives
+        the downwelling irradiance, while Zenimin = 90° and Zenimax = 180˚ gives the upwelling irradiance.
+
+        :param zenimin:
+        :param zenimax:
+        :param planar:
+        :return:
+        """
+        if np.any(self.mappedradiance):
+            radm = self.mappedradiance.copy()
+            zeni = self.zenith_mesh.copy()
+            azi = self.azimuth_mesh.copy()
+
+            mask = (zenimin * np.pi / 180 <= zeni) & (zeni <= zenimax * np.pi / 180)
+
+            irr = np.array([])
+            for b in range(radm.shape[2]):
+
+                # Current radiance
+                rad = radm[:, :, b]
+
+                # Integrand
+                if planar:
+                    integrand = rad[mask] * np.absolute(np.cos(zeni[mask])) * np.sin(zeni[mask])
+                else:
+                    integrand = rad[mask] * np.sin(zeni[mask])
+
+                azimuth_inte = integrate.simps(integrand.reshape((-1, azi.shape[1])), azi[mask].reshape((-1, azi.shape[1])), axis=1)
+                e = integrate.simps(azimuth_inte, zeni[mask].reshape((-1, azi.shape[1]))[:, 0], axis=0)
+
+                irr = np.append(irr, e)
+
+            return irr
+
+        else:
+            print("No radiance map in regular angular grid found. Method map_radiance() must be done. ")
+
+    def interpolation_3dpoints(self):
+        """
+        Not best method....
+        :return:
+        """
+
+        if np.any(self.mappedradiance):
+            radm = self.mappedradiance.copy()
+
+            x, y, z = self.points_3d(self.zenith_mesh.copy(), self.azimuth_mesh.copy())
+
+            rad_interp = np.empty(radm.shape)
+            for b in range(radm.shape[2]):
+
+                curr_rad = radm[:, :, b].copy()
+
+                cond_zero = curr_rad == 0
+
+                ref_coord = (x[~cond_zero], y[~cond_zero], z[~cond_zero])
+                wanted_coord = (x[cond_zero], y[cond_zero], z[cond_zero])
+
+                curr_rad[cond_zero] = scipy.interpolate.griddata(ref_coord, curr_rad[~cond_zero], wanted_coord, method="nearest")
+                rad_interp[:, :, b] = curr_rad
+
+            self.mapped_radiance_4pi = rad_interp
+            return self.mapped_radiance_4pi
+        else:
+            print("No radiance map in regular angular grid found. Method map_radiance() must be done. ")
+
     def polar_plot_contourf(self, fig, ax, ncontour):
         """
         Filled contour plot.
@@ -499,7 +571,7 @@ class ImageRadiancei360(ProcessImage):
             a[2].set_xlabel("Azimuth [˚]")
             f.tight_layout()
         else:
-            print("Noting to show. Methods map_radiance() must be done. ")
+            print("Noting to show. Method map_radiance() must be done. ")
 
     def angle_from_axis(self, axis="x"):
         """
@@ -560,7 +632,7 @@ class ImageRadiancei360(ProcessImage):
         Meshgrid of azimuth and zenith on a complete sphere according to angular resolution.
 
         :param resolution:
-        :return:
+        :return: tuple (azimuth, zenith) in radians
         """
 
         zenith_lim = np.array([0.0, 180.0])
@@ -638,11 +710,20 @@ class ImageRadiancei360(ProcessImage):
 
 if __name__ == "__main__":
 
+    # Test
     oden_data_list = glob.glob("/Volumes/MYBOOK/data-i360/field/oden-08312018/IMG*.dng")
     im_rad = ImageRadiancei360(oden_data_list[10], "water")
 
     im_rad.get_radiance(dark_metadata=True)
-    im_rad.map_radiance()
+    im_rad.map_radiance(angular_resolution=1.0)
     im_rad.show_mapped_radiance()
+
+    # Interpolation for the missing angles
+    im_rad.interpolation_3dpoints()
+
+    # Irradiances
+    ed = im_rad.irradiance(0, 90, planar=True)
+    eu = im_rad.irradiance(90, 180)
+    e0 = im_rad.irradiance(0, 180, planar=False)
 
     plt.show()
