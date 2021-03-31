@@ -484,19 +484,22 @@ class ImageRadiancei360(ProcessImage):
         :return:
         """
 
-        f, a = plt.subplots(3, 1, sharex=True)
+        if np.any(self.mappedradiance):
+            f, a = plt.subplots(3, 1, sharex=True)
 
-        radiance_copy = self.mappedradiance.copy()
-        titless = ["red band", "green band", "blue band"]
+            radiance_copy = self.mappedradiance.copy()
+            titless = ["red band", "green band", "blue band"]
 
-        for n, aa in enumerate(a):
+            for n, aa in enumerate(a):
 
-            aa.imshow(radiance_copy[:, :, n])
-            aa.set_title(titless[n], fontsize=7)
-            aa.set_ylabel("Zenith [˚]")
+                aa.imshow(radiance_copy[:, :, n])
+                aa.set_title(titless[n], fontsize=7)
+                aa.set_ylabel("Zenith [˚]")
 
-        a[2].set_xlabel("Azimuth [˚]")
-        f.tight_layout()
+            a[2].set_xlabel("Azimuth [˚]")
+            f.tight_layout()
+        else:
+            print("Noting to show. Methods map_radiance() must be done. ")
 
     def angle_from_axis(self, axis="x"):
         """
