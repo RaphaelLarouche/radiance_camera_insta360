@@ -119,13 +119,14 @@ class ImageRadiancei360(ProcessImage):
             cal = hfrel[tag][:]
         return cal
 
-    def getradiance(self, dark_metadata=True):
+    def get_radiance(self, dark_metadata=True):
         """
         Processing steps to transform raw image in spectral radiance image.
 
         :param dark_metadata:
         :return:
         """
+
         # Downsampling
         self.im = self.dwnsampling(self.im, "RGGB")  # From ProcessImage class
 
@@ -142,129 +143,13 @@ class ImageRadiancei360(ProcessImage):
         self.rolloff_correction()
 
         # Absolute Coefficient
-        self.absolute_radiance()
+        self.apply_absolute_radiance_calibration()
 
         # Immersion factor
         if self.medium == "water":
             self.immersion_correction()
 
-    def dark_correction(self):
-        """
-        Method to remove dark noise using the stored value in the tif metadata.
-        :return:
-        """
-
-        self.im -= float(str(self.metadata["Image BlackLevel"]))
-        return self.im
-
-    def dark_correction_image_plane(self):
-        """
-
-        :return:
-        """
-
-        if self.im.shape[2] == 3:
-            ima = self.im_original.copy().astype(float)
-            height = ima.shape[0]
-            half_height = int(height // 2)
-
-            im_c = ima[half_height:height:1, :]
-            im_f = ima[0:half_height:1, :]
-
-            ima_c_dws = self.dwnsampling(im_c, "RGGB")
-            ima_f_dws = self.dwnsampling(im_f, "RGGB")
-
-            for i in range(ima_c_dws.shape[2]):
-
-                cond_c = self.zen_c[:, :, i] >= self.fov + 15
-                cond_f = self.zen_f[:, :, i] >= self.fov + 15
-
-                bl_c = ima_c_dws[cond_c].mean()
-                bl_f = ima_f_dws[cond_f].mean()
-
-                print(bl_c, bl_f)
-
-                self.im[half_height:height:1, :, i] -= bl_c
-                self.im[0:half_height:1, :, i] -= bl_f
-
-            return self.im
-        else:
-            raise ValueError("Mosaic down-sampling not done.")
-
-    def normalisation(self):
-        """
-        Method for normalisation for gain and exposure time
-        :return:
-        """
-
-        self.im /= (self.extract_integrationtime(self.metadata) * (self.extract_iso(self.metadata) / 100))
-        return self.im
-
-    def rolloff_correction(self):
-        """
-        Roll-off correction for each spectral band.
-        :return:
-        """
-        if len(self.im.shape) == 3:
-
-            imsize = self.geometric_close["red"].imsize.astype(int)
-
-            rollclose = np.zeros((imsize[0], imsize[1], 3))
-            rollfar = np.zeros((imsize[0], imsize[1], 3))
-
-            for band, k in enumerate(self.geometric_close.keys()):
-
-                zen_close_dws = self.zen_c[:, :, band]
-                zen_far_dws = self.zen_f[:, :, band]
-
-                rollc = self.rolloff_polynomial(zen_close_dws, *self.rolloff_close[band, :])
-                rollf = self.rolloff_polynomial(zen_far_dws, *self.rolloff_far[band, :])
-
-                rollc[zen_close_dws > self.fov] = 1.0
-                rollf[zen_far_dws > self.fov] = 1.0
-
-                rollclose[:, :, band] = rollc
-                rollfar[:, :, band] = rollf
-
-            rolloff = np.concatenate((rollfar, rollclose), axis=0)
-
-            self.im /= rolloff
-
-            return self.im
-
-        else:
-            raise ValueError("Downsampling or demosaic must be done before!")
-
-    def absolute_radiance(self):
-        """
-        Apply absolute spectral radiance calibration coefficient to the digital numbers of each spectral band.
-        :return:
-        """
-
-        if len(self.im.shape) == 3:
-
-            height = self.im.shape[0]
-            for n in range(self.im.shape[2]):
-                self.im[0:int(height // 2):1, :, n] *= self.cl_far[n]
-                self.im[int(height // 2):height:1, :, n] *= self.cl_close[n]
-
-            return self.im
-        else:
-            raise ValueError("Downsampling or demosaic must be done before!")
-
-    def immersion_correction(self):
-        """
-
-        :return:
-        """
-
-        if len(self.im.shape) == 3:
-            self.im *= self.ifactor_close
-            return np.clip(self.im, 0, None)
-        else:
-            raise ValueError("Downsampling or demosaic must be done before!")
-
-    def radiancemap(self, angular_resolution=1.0):
+    def map_radiance(self, angular_resolution=1.0):
         """
 
         :param zenith_lim:
@@ -311,6 +196,127 @@ class ImageRadiancei360(ProcessImage):
 
             return self.zenith_mesh, self.azimuth_mesh, self.mappedradiance
 
+        else:
+            raise ValueError("Downsampling or demosaic must be done before!")
+
+    def dark_correction(self):
+        """
+        Method to remove dark noise using the stored value in the tif metadata.
+        :return:
+        """
+
+        self.im -= float(str(self.metadata["Image BlackLevel"]))
+        return self.im
+
+    def dark_correction_image_plane(self):
+        """
+
+        :return:
+        """
+
+        if self.im.shape[2] == 3:
+            ima = self.im_original.copy().astype(float)
+            height = ima.shape[0]
+            half_height = int(height // 2)
+
+            im_c = ima[half_height:height:1, :]
+            im_f = ima[0:half_height:1, :]
+
+            ima_c_dws = self.dwnsampling(im_c, "RGGB")
+            ima_f_dws = self.dwnsampling(im_f, "RGGB")
+
+            for i in range(ima_c_dws.shape[2]):
+
+                # Fov + 15˚
+                cond_c = self.zen_c[:, :, i] >= self.fov + 15
+                cond_f = self.zen_f[:, :, i] >= self.fov + 15
+
+                # BlackLevel estimations
+                bl_c = ima_c_dws[cond_c].mean()
+                bl_f = ima_f_dws[cond_f].mean()
+
+                print("Lens-close blacklevel estimation: {0:.1f}\n"
+                      "Lens-far blacklevel estimation: {1:.1f}".format(bl_c, bl_f))
+
+                self.im[half_height:height:1, :, i] -= bl_c
+                self.im[0:half_height:1, :, i] -= bl_f
+
+            return self.im
+        else:
+            raise ValueError("Mosaic down-sampling not done.")
+
+    def normalisation(self):
+        """
+        Method for normalisation for gain and exposure time
+        :return:
+        """
+
+        self.im /= (self.extract_integrationtime(self.metadata) * (self.extract_iso(self.metadata) / 100))
+        return self.im
+
+    def rolloff_correction(self):
+        """
+        Roll-off correction for each spectral band.
+        :return:
+        """
+        if len(self.im.shape) == 3:
+
+            imsize = self.geometric_close["red"].imsize.astype(int)
+
+            rollclose = np.zeros((imsize[0], imsize[1], 3))
+            rollfar = np.zeros((imsize[0], imsize[1], 3))
+
+            for band, k in enumerate(self.geometric_close.keys()):
+
+                zen_close_dws = self.zen_c[:, :, band]
+                zen_far_dws = self.zen_f[:, :, band]
+
+                rollc = self.rolloff_polynomial(zen_close_dws, *self.rolloff_close[band, :])
+                rollf = self.rolloff_polynomial(zen_far_dws, *self.rolloff_far[band, :])
+
+                rollc[zen_close_dws > self.fov] = 1.0
+                rollf[zen_far_dws > self.fov] = 1.0
+
+                rollclose[:, :, band] = rollc
+                rollfar[:, :, band] = rollf
+
+            # Assemble both roll-off for each lenses
+            rolloff = np.concatenate((rollfar, rollclose), axis=0)
+
+            # Roll-off correction
+            self.im /= rolloff
+
+            return self.im
+
+        else:
+            raise ValueError("Downsampling or demosaic must be done before!")
+
+    def apply_absolute_radiance_calibration(self):
+        """
+        Apply absolute spectral radiance calibration coefficient to the digital numbers of each spectral band.
+        :return:
+        """
+
+        if len(self.im.shape) == 3:
+
+            height = self.im.shape[0]
+            for n in range(self.im.shape[2]):
+                self.im[0:int(height // 2):1, :, n] *= self.cl_far[n]
+                self.im[int(height // 2):height:1, :, n] *= self.cl_close[n]
+
+            return self.im
+        else:
+            raise ValueError("Downsampling or demosaic must be done before!")
+
+    def immersion_correction(self):
+        """
+        Immersion correction for when the camera is in-water.
+        :return:
+        """
+
+        if len(self.im.shape) == 3:
+            self.im *= self.ifactor_close
+            return np.clip(self.im, 0, None)
         else:
             raise ValueError("Downsampling or demosaic must be done before!")
 
@@ -386,6 +392,7 @@ class ImageRadiancei360(ProcessImage):
 
     def getimage(self, which):
         """
+        Select image according to the specified lens.
 
         :param which:
         :return:
@@ -404,6 +411,7 @@ class ImageRadiancei360(ProcessImage):
 
     def azimuthal_integration(self):
         """
+        Integration of radiance angular distribution for azimuth angles.
 
         :return:
         """
@@ -416,6 +424,7 @@ class ImageRadiancei360(ProcessImage):
     def azimuthal_average(self):
         """
         Average of radiance in azimuth direction.
+
         :return:
         """
         if len(self.mappedradiance.shape) > 1:
@@ -430,9 +439,12 @@ class ImageRadiancei360(ProcessImage):
 
     def polar_plot_contourf(self, fig, ax, ncontour):
         """
+        Filled contour plot.
 
-        :param ncontour:
-        :return:
+        :param fig: figure matplotlib
+        :param ax: axe matplotlib
+        :param ncontour: number of contour region.
+        :return: tuple (fig, ax)
         """
 
         if len(self.mappedradiance.shape) == 3:
@@ -464,6 +476,27 @@ class ImageRadiancei360(ProcessImage):
             return fig, ax
         else:
             raise ValueError("Radiance map should be build before.")
+
+    def show_mapped_radiance(self):
+        """
+        Rapid plot of each spectral band radiance mapped on a regular degree spaced grid.
+
+        :return:
+        """
+
+        f, a = plt.subplots(3, 1, sharex=True)
+
+        radiance_copy = self.mappedradiance.copy()
+        titless = ["red band", "green band", "blue band"]
+
+        for n, aa in enumerate(a):
+
+            aa.imshow(radiance_copy[:, :, n])
+            aa.set_title(titless[n], fontsize=7)
+            aa.set_ylabel("Zenith [˚]")
+
+        a[2].set_xlabel("Azimuth [˚]")
+        f.tight_layout()
 
     def angle_from_axis(self, axis="x"):
         """
@@ -603,7 +636,10 @@ class ImageRadiancei360(ProcessImage):
 if __name__ == "__main__":
 
     oden_data_list = glob.glob("/Volumes/MYBOOK/data-i360/field/oden-08312018/IMG*.dng")
-
     im_rad = ImageRadiancei360(oden_data_list[10], "water")
+
+    im_rad.get_radiance(dark_metadata=True)
+    im_rad.map_radiance()
+    im_rad.show_mapped_radiance()
 
     plt.show()
