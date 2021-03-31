@@ -223,7 +223,7 @@ class ImageRadiancei360(ProcessImage):
         :return:
         """
 
-        self.im -= float(str(self.metadata["Image Tag 0xC61A"]))
+        self.im -= float(str(self.metadata["Image BlackLevel"]))
         return self.im
 
     def dark_correction_image_plane(self):

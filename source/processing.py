@@ -293,7 +293,8 @@ class ProcessImage:
         :param metadata: metadata dictionary
         :return:
         """
-        return float(str(metadata["Image Tag 0xC61A"]))
+        # return float(str(metadata["Image Tag 0xC61A"]))
+        return float(str(metadata["Image BlackLevel"]))
 
     @staticmethod
     def gain_linear(gain_db):
@@ -326,7 +327,8 @@ class ProcessImage:
         :return: stack of grey image
         """
         saturation = float(str(metadata["Image Tag 0xC61D"]))
-        blacklevel = float(str(metadata["Image Tag 0xC61A"]))
+        #blacklevel = float(str(metadata["Image Tag 0xC61A"]))
+        blacklevel = float(str(metadata["Image BlackLevel"]))
 
         im_norm = (image - blacklevel) / (saturation - blacklevel)
         im_norm *= brightnessfactor

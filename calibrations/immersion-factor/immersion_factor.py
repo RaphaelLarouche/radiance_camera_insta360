@@ -14,7 +14,7 @@ import numpy as np
 from scipy import stats
 import matplotlib
 import matplotlib.pyplot as plt
-from refractivesqlite import dboperations as DB
+from refractivesqlite import dboperations as DB   # https://github.com/HugoGuillen/refractiveindex.info-sqlite
 
 # Importation of other modules
 from source.processing import ProcessImage, FigureFunctions
