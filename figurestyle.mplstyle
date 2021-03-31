@@ -1,0 +1,7 @@
+figure.figsize: 6.4, 4.8
+font.family: sans-serif
+font.serif: Helvetica
+axes.labelsize: 9
+xtick.labelsize: 9
+ytick.labelsize: 9
+legend.fontsize: 8
