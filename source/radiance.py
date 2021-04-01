@@ -726,4 +726,7 @@ if __name__ == "__main__":
     eu = im_rad.irradiance(90, 180)
     e0 = im_rad.irradiance(0, 180, planar=False)
 
+    # TEST FOR ANOTHER INTERPOLATION FROM FIT
+
+
     plt.show()
