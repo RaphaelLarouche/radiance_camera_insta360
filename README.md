@@ -11,8 +11,7 @@ The project is organized in three main directories:
 
 ***
 ##### 1. calibrations
-**calibrations** directory contains all the routines used to perform the camera radiometric calibrations. 
-Those are given :
+**calibrations** directory contains all the routines performing the camera radiometric calibrations:
 
  - Absolute spectral radiance calibration (calibrations/absolute-spectral-radiance)
  - Roll-off calibration (calibrations/roll-off)
@@ -21,7 +20,7 @@ Those are given :
  - Relative spectral response calibration (calibrations/relative-spectral-response)
  - Linearity characterization (calibrations/linearity)
 
-The description of those methodologies are detailed in the following paper https://www.the-cryosphere.net...
+Those methodologies are detailed in the following paper https://www.the-cryosphere.net...
 
 ***
 ##### 2. source
@@ -29,12 +28,12 @@ The description of those methodologies are detailed in the following paper https
 are used for the calibration scripts. 
 
 In the file `radiance.py`, the class `ImageRadiancei360` enclosed all the methods
-to retrieve the spectral radiance for each pixels and build regularly angular spaced grid of radiance. This class uses
+to retrieve the spectral radiance for each pixel and build regularly angular spaced grid of radiance. This class uses
 the calibration results saved in hdf5 format (in folders /calibrationfiles of each calibration folder).
 
 ***
 ##### 3. field
-**field** folder is used to placed any script which performs calculation on field measurements. For instance, radiance 
+**field** folder is used to place any script which performs calculation on field measurements. For instance, radiance 
 angular distributions were computed for a profile taken inside arctic sea ice during a campaign on Oden icebreaker near 
 the geographic North Pole (89˚ 25.21'N, 63˚ 08.67'E). More details on `oden2018` results are described in 
 https://www.the-cryosphere.net...
