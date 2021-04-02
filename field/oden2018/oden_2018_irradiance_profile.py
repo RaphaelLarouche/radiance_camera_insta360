@@ -182,5 +182,7 @@ if __name__ == "__main__":
     figrad.tight_layout()
 
     # Saving figures
+    fig1.savefig("figures/irradiance_profile.pdf", format="pdf", dpi=600)
+    fig2.savefig("figures/aops.pdf", format="pdf", dpi=600)
 
     plt.show()
