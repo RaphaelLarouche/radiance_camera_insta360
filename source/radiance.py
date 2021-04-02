@@ -762,9 +762,9 @@ def azimuthal_average(rad):
     :return:
     """
     condzero = rad == 0
-    rad[condzero] = np.nan
-
-    return np.nanmean(rad, axis=1)
+    rad2 = rad.copy()
+    rad2[condzero] = np.nan
+    return np.nanmean(rad2, axis=1)
 
 
 if __name__ == "__main__":
