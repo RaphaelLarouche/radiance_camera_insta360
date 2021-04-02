@@ -68,11 +68,11 @@ import source.radiance as radiance
 
 path = "image.dng"
 
-rad_im = radiance.ImageRadiancei360(path, "water") # object
+im_rad = radiance.ImageRadiancei360(path, "water") # object
 
-rad_im.get_radiance(dark_metadata=True)
-rad_im.map_radiance(angular_resolution=1.0)
-rad_im.show_mapped_radiance()
+im_rad.get_radiance(dark_metadata=True)
+im_rad.map_radiance(angular_resolution=1.0)
+im_rad.show_mapped_radiance()
 ``` 
 
 For irradiance calculations:
