@@ -175,8 +175,8 @@ class ImageRadiancei360(ProcessImage):
             theta_c, phi_c = np.arccos(py), np.arctan2(pz, px)  # angular coordinates (zenith, azimuth) lens close
             theta_f, phi_f = np.arccos(npy_f), np.arctan2(npz_f, -npx_f)  # ... lens far
 
-            cond_c = theta_c <= self.fov * np.pi / 180
-            cond_f = theta_f <= self.fov * np.pi / 180
+            cond_c = theta_c < self.fov * np.pi / 180
+            cond_f = theta_f < self.fov * np.pi / 180
 
             # Dewarping
             dewarp = np.zeros((theta_c.shape[0], theta_c.shape[1], 3))
@@ -231,8 +231,8 @@ class ImageRadiancei360(ProcessImage):
             for i in range(ima_c_dws.shape[2]):
 
                 # Fov + 15˚
-                cond_c = self.zen_c[:, :, i] >= self.fov + 15
-                cond_f = self.zen_f[:, :, i] >= self.fov + 15
+                cond_c = self.zen_c[:, :, i] >= self.fov + 20
+                cond_f = self.zen_f[:, :, i] >= self.fov + 20
 
                 # BlackLevel estimations
                 bl_c = ima_c_dws[cond_c].mean()
@@ -601,7 +601,8 @@ class ImageRadiancei360(ProcessImage):
         if self.medium == "air":
             _fov = 90.0
         elif self.medium == "water":
-            _fov = 72.0
+            #_fov = 72.0
+            _fov = 70.0
         else:
             raise ValueError("Medium attribute seems to be invalid.")
         return _fov
@@ -706,6 +707,65 @@ class ImageRadiancei360(ProcessImage):
         :return:
         """
         return np.array([[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]])
+
+
+# Other function accessible
+def irradiance(zeni, azi, radm, zenimin, zenimax, planar=True):
+    """
+    Estimate irradiance from the radiance angular distribution. By default, it calculates the planar irradiance.
+    By setting the parameter planar to false, the scalar irradiance is computed. Zenimin = 0˚ and Zenimax = 90˚ gives
+    the downwelling irradiance, while Zenimin = 90° and Zenimax = 180˚ gives the upwelling irradiance.
+
+    :param zeni: zenith meshgrid in degrees
+    :param azi: azimuth meshgrid in degrees
+    :param radm: radiance angular distribution
+    :param zenimin: min zenith in degrees
+    :param zenimax: max zenith in degrees
+    :param planar: if True - planar radiance, if false - scalar (bool)
+    :return:
+    """
+
+    mask = (zenimin <= zeni) & (zeni <= zenimax)
+    irr = np.array([])
+    zeni_rad = zeni * np.pi / 180
+    azi_rad = azi * np.pi / 180
+    for b in range(radm.shape[2]):
+
+        # Integrand
+        if planar:
+            integrand = radm[:, :, b][mask] * np.absolute(np.cos(zeni_rad[mask])) * np.sin(zeni_rad[mask])
+        else:
+            integrand = radm[:, :, b][mask] * np.sin(zeni_rad[mask])
+
+        azimuth_inte = integrate.simps(integrand.reshape((-1, azi_rad.shape[1])), azi_rad[mask].reshape((-1, azi_rad.shape[1])), axis=1)
+        e = integrate.simps(azimuth_inte, zeni_rad[mask].reshape((-1, azi_rad.shape[1]))[:, 0], axis=0)
+
+        irr = np.append(irr, e)
+
+    return irr
+
+
+def attenuation_coefficient(E, d):
+    """
+    Computation of attenuation coefficient of down-welling irradiance.
+
+    :param E: irradiance in W m-2 nm-1 (array)
+    :param d: depths in cm (array)
+    :return: attenuation coefficient
+    """
+    return -np.gradient(E, d/100, edge_order=2) * (1/E)
+
+
+def azimuthal_average(rad):
+    """
+    Average of radiance in azimuth direction.
+
+    :return:
+    """
+    condzero = rad == 0
+    rad[condzero] = np.nan
+
+    return np.nanmean(rad, axis=1)
 
 
 if __name__ == "__main__":
