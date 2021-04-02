@@ -437,15 +437,15 @@ class ProcessImage:
         return binary, sorted_region_properties[::-1]
 
     @staticmethod
-    def save_results():
+    def save_results(text="Do you want to save this calibration?"):
         """
         Input from user to prompt if he wants to save data.
 
-        :return:
+        :return: answer (y:yes or n: no), (str)
         """
         ans = ""
         while ans not in ["y", "n"]:
-            ans = input("Do you want to save this simulation? (yes: y, no: n)")
+            ans = input("{0} (yes: y, no: n)".format(text))
 
         return ans.lower()
 
