@@ -469,6 +469,27 @@ class ProcessImage:
             else:
                 hf.create_dataset(group + "/" + dataname, data=dat)
 
+    @staticmethod
+    def open_radiance_data(path="data/oden-08312018.h5"):
+        """
+        Function to open data stored in hdf5 file.
+
+        :param path: relative or absolute path to file
+        :return: (zenith meshgrid, azimuth meshgrid, radiance) (dct)
+        """
+
+        radiance_profile = {}
+        with h5py.File(path) as hf:
+            data = hf
+            for k in data.keys():
+                if k not in ["azimuth", "zenith"]:
+                    radiance_profile[k] = data[k][:]
+
+            zenith_mesh = data["zenith"][:]
+            azimuth_mesh = data["azimuth"][:]
+
+        return zenith_mesh, azimuth_mesh, radiance_profile
+
     # def fit_imagecenter(self, center, centroids, angles, popt):
     #     """
     #     Function to fit image center that minimized residuals on theoretical angle and the fitted angles.
