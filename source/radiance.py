@@ -14,11 +14,12 @@ import deepdish
 import numpy as np
 from scipy import integrate
 import scipy.interpolate
+from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 
 # Other module
 from source.processing import ProcessImage
-from source.geometric_rolloff import MatlabGeometric, MatlabGeometricMengine
+from source.geometric_rolloff import MatlabGeometricMengine
 
 
 # Classes
@@ -155,8 +156,6 @@ class ImageRadiancei360(ProcessImage):
     def map_radiance(self, angular_resolution=1.0):
         """
 
-        :param zenith_lim:
-        :param azimuth_lim:
         :param angular_resolution:
         :return:
         """
@@ -440,7 +439,7 @@ class ImageRadiancei360(ProcessImage):
         else:
             raise ValueError("Build radiance map before any integration.")
 
-    def irradiance(self, zenimin, zenimax, planar=True):
+    def irradiance(self, zenimin, zenimax, planar=True, interpolation=False):
         """
         Estimate irradiance from the radiance angular distribution. By default, it calculates the planar irradiance.
         By setting the parameter planar to false, the scalar irradiance is computed. Zenimin = 0˚ and Zenimax = 90˚ gives
@@ -451,8 +450,12 @@ class ImageRadiancei360(ProcessImage):
         :param planar:
         :return:
         """
-        if np.any(self.mappedradiance):
+        if interpolation:
+            radm = self.mapped_radiance_4pi.copy()
+        else:
             radm = self.mappedradiance.copy()
+        if np.any(radm):
+
             zeni = self.zenith_mesh.copy()
             azi = self.azimuth_mesh.copy()
 
@@ -508,6 +511,51 @@ class ImageRadiancei360(ProcessImage):
             return self.mapped_radiance_4pi
         else:
             print("No radiance map in regular angular grid found. Method map_radiance() must be done. ")
+
+    def interpolation_gaussian_function(self):
+        """
+        Extrapolation of missing angles (over 4pi sr) using a gaussian fit on the data. See function
+        self.general_gaussian().
+
+        :return:
+        """
+        if np.any(self.mappedradiance):
+            radm = self.mappedradiance.copy()
+            az_avg = self.azimuthal_average()
+
+            rad_interp = np.empty(radm.shape)
+            for b in range(radm.shape[2]):
+                co = ~np.isnan(az_avg[:, b])
+                norm_val = np.mean(az_avg[:, b][co][:5])  # 5 first values
+                az_avg_norm = az_avg[:, b][co] / norm_val
+                zen = self.zenith_mesh[:, 0][co]
+
+                popt, pcov = curve_fit(self.general_gaussian, zen, az_avg_norm, p0=[-0.7, 0, 0.1])
+
+                curr_rad = radm[:, :, b].copy()
+                cond_zero = curr_rad == 0
+                curr_rad[cond_zero] = self.general_gaussian(self.zenith_mesh[cond_zero], *popt) * norm_val
+
+                rad_interp[:, :, b] = curr_rad
+
+            self.mapped_radiance_4pi = rad_interp
+
+            return self.mapped_radiance_4pi
+        else:
+            print("No radiance map in regular angular grid found. Method map_radiance() must be done. ")
+
+    @staticmethod
+    def general_gaussian(x, a, b, c):
+        """
+        Gaussian function to extrapolate missing angles. 
+        :param x: independent val
+        :param a: a parameter
+        :param b: b parameter
+        :param c: c parameter
+        :param d: d parameter
+        :return: gaussian function apply to in val.
+        """""
+        return np.exp(-(x * a - b) ** 2) + c
 
     def polar_plot_contourf(self, fig, ax, ncontour):
         """
@@ -778,14 +826,18 @@ if __name__ == "__main__":
     im_rad.show_mapped_radiance()
 
     # Interpolation for the missing angles
-    im_rad.interpolation_3dpoints()
+    A = im_rad.interpolation_3dpoints()
+    B = im_rad.interpolation_gaussian_function()
 
     # Irradiances
     ed = im_rad.irradiance(0, 90, planar=True)
     eu = im_rad.irradiance(90, 180)
     e0 = im_rad.irradiance(0, 180, planar=False)
 
-    # TEST FOR ANOTHER INTERPOLATION FROM FIT
+    plt.figure()
+    plt.imshow(A[:, :, 1])
 
+    plt.figure()
+    plt.imshow(B[:, :, 1])
 
     plt.show()
