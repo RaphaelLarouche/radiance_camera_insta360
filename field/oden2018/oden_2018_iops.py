@@ -1,80 +1,80 @@
-# -*- coding: utf-8 -*-
 """
-Oden data 2018, cam optics folder.
+Oden 2018 iops tunning.
 """
 
 # Module importation
 import os
-import h5py
-import glob
 import pandas
-import string
+import matplotlib
 import numpy as np
+import matlab.engine
 import matplotlib.pyplot as plt
 
-# Other modules
+# Other module importations
+import source.radiance as r
+from source.geometric_rolloff import OpenMatlabFiles
+from source.processing import ProcessImage, FigureFunctions
 
 
-# Function
-def imagelabel(path):
+# Function and classes
+def open_TriOS_data(min_date="2018-08-31 8:00", max_date="2018-08-31 16:00", path_trios="data/2018R4_300025060010720.mat"):
     """
 
-    :param path:
+    :param min_date:
+    :param max_date:
+    :param path_trios:
     :return:
     """
-    labels = {}
-    with open(path, "r") as f:
-        for lines in f:
-            name, depth = lines.split("*")
-            labels[name] = depth.strip()
-    return labels
+    openmatlab = OpenMatlabFiles()
+    radiometer = openmatlab.loadmat(path_trios)
+    radiometer = radiometer["raw"]
+
+    timestamps = pandas.to_datetime(radiometer["irrad_t_1"] - 719529, unit='D')   # 719529 = 1 january 2000 Matlab
+    df_time = pandas.DataFrame({"Date": timestamps.to_period('H')})
+    mask = (df_time["Date"] <= max_date) & (df_time["Date"] >= min_date)
+    inx = df_time["Date"][mask].index
+
+    timestamps = timestamps.strftime("%B %d %Y, %H:%M:%S")
+    irradiance_incom = radiometer["incom_int_1"][inx].T / 1000  # mW to W
+    irradiance_below = radiometer["irrad_int_1"][inx].T / 1000  # mW to W
+
+    return timestamps, radiometer["wl"], irradiance_incom, irradiance_below
 
 
-def rsr_statistics(wavelength, rsr, verbose=True):
+def compute_results_dort(p, r, wdepth):
     """
-    Printing spectral statistics.
-    :param wavelength:
-    :param rsr:
+
+    :param p:
+    :param r:
+    :param wdepth:
     :return:
     """
-    eff_bw = np.zeros(3)
-    eff_wl = np.zeros(3)
-    max_wl = np.zeros(3)
-    for band in range(rsr.shape[1]):
-        eff_bw[band] = np.trapz(rsr[:, band], x=wavelength)
-        eff_wl[band] = np.trapz(rsr[:, band] * wavelength, x=wavelength) / eff_bw[band]
-        max_wl[band] = wavelength[np.argmax(rsr[:, band])]
+    polar = np.arccos(p["mu_interpol"]) * 180 / np.pi
+    zenith = np.concatenate((polar[::-1], 180 - polar), axis=0)
+    azimuth = np.array(dort_p["phi_interpol"]) * 180 / np.pi
 
-        if verbose:
-            print("Band no. {0} statistics".format(band))
-            print("Effective bw: {0:.4f}, effective wl: {1:.4f}, maximum wl: {2:.4f}". format(eff_bw[band], eff_wl[band], max_wl[band]))
-    return eff_wl, max_wl, eff_bw
+    az_mesh, zen_mesh = np.meshgrid(azimuth, zenith)
 
+    # Pre-allocation
+    rad_dist = {}
 
-def irradiance(rad, zeni, azi, zenimin, zenimax, planar=True):
-    """
+    for i, de in enumerate(p["depth"]):
 
-    :param rad:
-    :param zeni: in degrees
-    :param azi: in degrees
-    :return:
-    """
-    mask = (zenimin <= zeni) & (zeni <= zenimax)
+        # Depth
+        decm = round((float(np.array(de)) - 100) * 100)
 
-    zenith = zeni * np.pi / 180
-    azimuth = azi * np.pi / 180
+        if decm in wdepth:
 
-    if planar:
-        integrand = rad[mask] * np.absolute(np.cos(zenith[mask])) * np.sin(zenith[mask])
-    else:
-        integrand = rad[mask] * np.sin(zenith[mask])
+            radiance_d = np.array(r["I_ac_" + str(i+1)])
+            radiance_d = radiance_d[::-1, :]
+            radiance_d[45:, :] = radiance_d[45:, :][::-1, :]
 
-    azimuth_inte = integrate.simps(integrand.reshape((-1, azimuth.shape[1])), azimuth[mask].reshape((-1, azimuth.shape[1])), axis=1)
+            rad_dist[str(decm)] = radiance_d
 
-    return integrate.simps(azimuth_inte, zenith[mask].reshape((-1, azimuth.shape[1]))[:, 0], axis=0)
+    return rad_dist, zen_mesh, az_mesh
 
 
-def colorbardepth(f, a, cmapp, diction):
+def colorbardepth(f, a, cmapp, valdum):
     """
     Function to add colorbar to the profile figure.
 
@@ -84,341 +84,332 @@ def colorbardepth(f, a, cmapp, diction):
     :param diction:
     :return:
     """
-    valdum = np.array(list(diction.values()))
-    dcax = a.scatter(valdum, valdum, c=np.arange(1, len(valdum) + 1), cmap=cmapp)
+
+    dcax = a.scatter(valdum, valdum, c=np.arange(1, cmapp.N+1), cmap=cmapp)
 
     a.cla()
-    cb = f.colorbar(dcax, ax=a, orientation="vertical", fraction=0.05, pad=0.04)
-    cb.ax.locator_params(nbins=cmapp.colors.shape[0])
-    cb.ax.set_yticklabels(["{0:.0f}".format(j) for j in np.array(list(diction.values()))])
+    cb = f.colorbar(dcax, ax=a, orientation="vertical")
+
+    cb.ax.locator_params(nbins=cmapp.N)
+    cb.ax.set_yticklabels(["{0:.0f}".format(j) for j in valdum])
     cb.ax.set_title("depth [cm]", fontsize=6)
+    cb.ax.invert_yaxis()
 
     return f, a
 
 
-def anglefromY(x, y, z):
+def build_cmap_2cond_color(cmap_name, d):
     """
 
-    :param x:
-    :param y:
-    :param z:
-    :return:
-    """
-    return np.arctan2((x ** 2 + z ** 2) ** (1 / 2), y)
-
-
-def save_radiance_image_hdf5(path_name, dataname, dat):
-    """
-
-    :param path_name:
-    :param dataname:
-    :param mapped_radiance:
-    :param zenith_mesh: meshgrid of zenith in radians
-    :param azimuth_mesh: meshgrid of azimuth in radians
+    :param cmap_name:
     :return:
     """
 
-    datapath = dataname
-
-    with h5py.File(path_name) as hf:
-        if datapath in hf:
-            d = hf[datapath]  # load the data
-            d[...] = dat
-        else:
-            dset = hf.create_dataset(dataname, data=dat)
+    CMA = matplotlib.cm.get_cmap(cmap_name, len(d) + 1)
+    colooor = CMA(np.arange(1, CMA.N))
+    custom_cmap = matplotlib.colors.ListedColormap(colooor[::-1])
+    return custom_cmap
 
 
-def saveresults():
+def scattering_coeff_figure(scattering_coefficient, layer_t, fsize):
     """
 
+    :param scattering_coefficient:
+    :param layer_depth:
     :return:
     """
-    ans = ""
-    while ans not in ["y", "n"]:
-        ans = input("Do you want to save this simulation?")
+    figure, axe = plt.subplots(1, 1, figsize=fsize)
+    lims = np.cumsum(np.squeeze(np.array(layer_t))) - 100
+    scat = np.squeeze(np.array(scattering_coefficient))
+    labs = ["Surface scattering layer (SSL)", "Drained layer (DL)", "Interior ice (II)"]
+    ls = [":", "-.", "-"]
 
-    return ans.lower()
+    for z in range(lims.shape[0] - 2):
+
+        depth_vect = np.linspace(lims[z], lims[z + 1], 30)
+        s = np.ones(depth_vect.shape[0]) * scat[z + 1]
+
+        axe.plot(s, depth_vect, linestyle=ls[z], color="gray", label=labs[z])
+
+    axe.invert_yaxis()
+    axe.set_xscale("log")
+    axe.set_xlabel("Scattering coefficient $b~[\mathrm{m^{-1}}]$ ")
+    axe.set_ylabel("Depth [m]")
+
+    axe.legend(loc=4)
+
+    return figure, axe
+
+
+def create_figure_axe_3x3(fisiz):
+    """
+
+    :param fisiz:
+    :return:
+    """
+
+    f = plt.figure(figsize=fisiz)
+    a00 = f.add_subplot(3, 3, 1)
+    a01 = f.add_subplot(3, 3, 2, sharex=a00, sharey=a00)
+    a02 = f.add_subplot(3, 3, 3, sharex=a00)
+
+    a10 = f.add_subplot(3, 3, 4, sharex=a00, sharey=a00)
+    a11 = f.add_subplot(3, 3, 5, sharex=a00, sharey=a00)
+    a12 = f.add_subplot(3, 3, 6, sharex=a00, sharey=a02)
+
+    a20 = f.add_subplot(3, 3, 7, sharex=a00, sharey=a00)
+    a21 = f.add_subplot(3, 3, 8, sharex=a00, sharey=a00)
+    a22 = f.add_subplot(3, 3, 9, sharex=a00, sharey=a02)
+
+    a = np.array([[a00, a01, a02], [a10, a11, a12], [a20, a21, a22]])
+
+    return f, a
 
 
 if __name__ == "__main__":
 
-    # Instance processimage
-    processim = classes_i360.ProcessImage()
-
     # Instance of FigureFunctions
-    ff = classes_i360.FigureFunctions()
+    ff = FigureFunctions()
+    plt.style.use("../../figurestyle.mplstyle")
 
-    # Geometric calibration
-    mgeometric = classes_i360.MatlabGeometric("../calibrations/geometric/calibrationfiles_water/CloseFisheyeParams.mat")
-    _, zen, azi = mgeometric.angular_coordinates()
+    # Object ProcessImage
+    process = ProcessImage()
 
-    # Oden data
-    odenpath = "/Volumes/MYBOOK/data-i360/field/oden-08312018/"
-    oden_impath = glob.glob(odenpath + "*.dng")
-    oden_impath.sort()
+    # Setting incoming radiance
+    time_stamp, radiometer_wl, irr_incom, irr_below = open_TriOS_data()
+    eff_wl = np.array([602, 544, 484])
 
-    # Oden radiometer data
-    openmatlab = classes_i360.OpenMatlabFiles()
-    radiometer = openmatlab.loadmat(odenpath + "radiometerdata/2018R4_300025060010720.mat")
-    radiometer = radiometer["raw"]
+    rad_dort_band = {}
 
-    locale.setlocale(locale.LC_ALL, 'en_US')
-    timestamps = pandas.to_datetime(radiometer["irrad_t_1"] - 719529, unit='D')  # 719529 1 january 2000 Matlab
-    #timestamps = timestamps.tz_localize("UTC").tz_convert("Etc/GMT-5")
-    df_time = pandas.DataFrame({"Date": timestamps.to_period('H')})
-    #mask = (df_time["Date"] <= "2018-08-31 12:00") & (df_time["Date"] >= "2018-08-31 1:00")
-    mask = (df_time["Date"] <= "2018-08-31 16:00") & (df_time["Date"] >= "2018-08-31 8:00")
-    #mask = (df_time["Date"] <= "2018-09-01 00:00") & (df_time["Date"] >= "2018-08-31 0:00")
-    inx = df_time["Date"][mask].index
+    # Open Field measurements
+    ze_mesh, az_mesh, rad_profile = process.open_radiance_data(path="data/oden-08312018.h5")
 
-    timestamps = timestamps.strftime("%B %d %Y, %H:%M:%S")
-
-    irradiance_incom = radiometer["incom_int_1"][inx].T / 1000  # mW to W
-    irradiance_below = radiometer["irrad_int_1"][inx].T / 1000  # mW to W
-
-    # Spectral curves
-    srdata = h5py.File("../calibrations/relative_spectral_response/calibrationfiles/rsr_20200610.h5", "r")
-    srdata = srdata["lens-close"]
-
-    eff_wl, max_wl, eff_bw = rsr_statistics(srdata["wavelength"][:], srdata["rsr_peak_norm"][:])
-
-    # Pre-allocation
-    plt.style.use("../figurestyle.mplstyle")
-    fig1, ax1 = plt.subplots(2, 3, sharex=True, figsize=(8, 4.59))
-    fig4 = plt.figure(figsize=ff.set_size(subplots=(2, 2)))
-
-    Ed = np.zeros(11, dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4')]))
-    Eu = np.zeros(11, dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4')]))
-    Eo = np.zeros(11, dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4')]))
-
-    ax4 = np.ndarray((2, 2), dtype=object)
-    ax4[0, 0] = fig4.add_subplot(221)
-    ax4[0, 1] = fig4.add_subplot(222, sharey=ax4[0, 0])
-    ax4[1, 0] = fig4.add_subplot(223, sharex=ax4[0, 0])
-    ax4[1, 1] = fig4.add_subplot(224, sharex=ax4[0, 1], sharey=ax4[1, 0])
-
-    # Read profile metadata
-    labels = imagelabel(odenpath + "ReadMe_python.txt")
-    wanted_depth = ["zero minus", "20 cm (in water)", "40 cm", "60 cm", "80 cm", "100 cm", "120 cm", "140 cm", "160 cm", "180 cm", "200 cm"]
-    # 180 cm likely 165 cm as selfie stick came up compressed
-    imagepath_filtered = oden_impath[2:-9:]
-    imagepath_filtered[-1] = oden_impath[-9]
-
-    bounds = np.arange(0, 220, 20)
-
-    # Colormap
-    colornormdict = dict(zip(wanted_depth, bounds))
-    colo = matplotlib.cm.get_cmap("viridis", len(colornormdict.values()))
-    cmit = iter(colo.colors)
-
-    # Dummy
-    fig4, ax4[0, 1] = colorbardepth(fig4, ax4[0, 1], colo, colornormdict)
-    fig4, ax4[1, 1] = colorbardepth(fig4, ax4[1, 1], colo, colornormdict)
-
-    num = 0
-    dicband = {0: "r", 1: "g", 2: "b"}
-
-    # Data saving parameters
-    path_save_rad = "data/oden-08312018_good.h5"
-
-    answ = saveresults()
-    cond_s = answ == "y"
-    # Loop
-    for f in imagepath_filtered:
-
-        _, tail = os.path.split(f)
-
-        if labels[tail[:-4]] in wanted_depth:
-
-            head, tail = os.path.split(f)
-
-            print(labels[tail[:-4]])
-
-            im_op, met_op = processim.readDNG_insta360_np(f, "close")
-
-            # Printing exposure paramters
-            # print(processim.extract_iso(met_op))
-            # print(processim.extract_integrationtime(met_op))
-
-            datanoise = im_op[zen >= 90]
-
-            if labels[tail[:-4]] == "zeros minus":
-                imageradiance = classes_i360.ImageRadiancei360(f, "air")
-            else:
-                imageradiance = classes_i360.ImageRadiancei360(f, "water")
-
-            # Post-processing to get radiance angular distribution from images
-            _ = imageradiance.getradiance(dark_metadata=False)
-            _, _, _ = imageradiance.radiancemap()
-            integration = imageradiance.azimuthal_average()  # Integration
-
-            # Saving data
-            if cond_s:
-                save_radiance_image_hdf5(path_save_rad, labels[tail[:-4]], imageradiance.mappedradiance.copy())
-                save_radiance_image_hdf5(path_save_rad, "zenith", imageradiance.zenith_mesh.copy() * 180 / np.pi)
-                save_radiance_image_hdf5(path_save_rad, "azimuth", imageradiance.azimuth_mesh.copy() * 180 / np.pi)
-
-            cl = next(cmit)
-            for i in range(integration.shape[1]):
-                cond0 = np.where(integration[:, i] == 0)
-                integra = integration[:, i].copy()
-                zenith = imageradiance.zenith_mesh[:, 0].copy()
-
-                integra[cond0] = np.nan
-                zenith[cond0] = np.nan
-
-                # Irradiances, interpolations
-                X, Y, Z = imageradiance.points_3d(imageradiance.zenith_mesh.copy(), imageradiance.azimuth_mesh.copy())
-                rad = imageradiance.mappedradiance[:, :, i].copy()
-                aY = anglefromY(X, Y, Z)
-                fov = 70
-                cond = (aY <= fov * np.pi / 180) | (np.pi - aY <= fov * np.pi / 180)
-
-                condzero = ~cond
-                rad[condzero] = griddata((X[~condzero], Y[~condzero], Z[~condzero]),
-                                         rad[~condzero], (X[condzero], Y[condzero], Z[condzero]),
-                                         method="nearest")
-
-                Ed[dicband[i]][num] = irradiance(rad, imageradiance.zenith_mesh.copy() * 180 / np.pi, imageradiance.azimuth_mesh.copy() * 180 / np.pi, 0, 90)
-                Eu[dicband[i]][num] = irradiance(rad, imageradiance.zenith_mesh.copy() * 180 / np.pi, imageradiance.azimuth_mesh.copy() * 180 / np.pi, 90, 180)
-                Eo[dicband[i]][num] = irradiance(rad, imageradiance.zenith_mesh.copy() * 180 / np.pi, imageradiance.azimuth_mesh.copy() * 180 / np.pi, 0, 180, planar=False)
-
-                # Ax1
-                ax1[0, i].plot(zenith * 180 / np.pi, integra, linewidth=2, color=cl, label=labels[tail[:-4]])
-                ax1[0, i].set_yscale("log")
-                ax1[0, i].set_xlim((20, 160))
-                ax1[0, i].set_ylim((1e-5, 0.1))
-
-                # Ax2
-                ax1[1, i].plot(zenith * 180 / np.pi, 100*(integra/np.nanmax(integra)), linewidth=2, color=cl, label=labels[tail[:-4]])
-                ax1[1, i].set_yticks(np.arange(0, 120, 20))
-                ax1[1, i].set_xlabel("Zenith angle [˚]")
-
-                if i == 1:  # Green band
-                    ax4[0, 1].plot(zenith * 180 / np.pi, integra, linewidth=2, color=cl, label=labels[tail[:-4]])
-                    ax4[0, 1].set_yscale("log")
-                    ax4[0, 1].set_xlim((20, 160))
-                    #ax4[0, 1].set_ylim((2.5842052131699986e-05, 0.033625178581195549))
-
-                    ax4[1, 1].plot(zenith * 180 / np.pi, 100 * (integra / np.nanmax(integra)), linewidth=2, color=cl, label=labels[tail[:-4]])
-                    ax4[1, 1].set_yticks(np.arange(0, 120, 20))
-                    ax4[1, 1].set_xlabel("Zenith [˚]")
-
-            if labels[tail[:-4]] == "60 cm":
-                fig_cont, ax_c = plt.subplots(1, 3, figsize=ff.set_size(443.86319), subplot_kw=dict(projection='polar'))
-                fig_cont, ax_c = imageradiance.polar_plot_contourf(fig_cont, ax_c, 20)
-            num += 1
-        else:
-            continue
-
-    # DORT2002 simulations - wavelength 540 nm (near effective wl of green band)
-    number_layer = 4.0
-    layer_thickness = matlab.double([100, 0.1, 2.0, 10.0])
-    #depth = matlab.double(list(np.arange(100.2, 102.1, 0.1)))  # Between 20 cm and 200 cm each 10 cm
+    # DORT SIMULATIONS
+    eng = matlab.engine.start_matlab()
+    nstreams = 30
+    number_layer = 5.0
+    layer_thickness = matlab.double([100, 0.1, 0.7, 1.2, 10.0])  # in meters
     depth = matlab.double(list(np.arange(100, 102.1, 0.1)))
 
-    # d = [100.0] + list(np.arange(100.2, 102.1, 0.1))
-    # depth = matlab.double(d)
+    # Scattering properties ______
+    #bnp = np.array([0, 2300, 300, 80, 0.1])  # For g = 0.98
+    #bnp = np.array([0,  2313.21860285,   308.42726122,    80.75973847, 0.1])
+    # bnp = np.array([0, 2500, 2000, 100, 0.1])  # For g = 0.98
+    bnp = np.array([0, 2313, 308, 81, 0.1])
 
-    # Christian IOPs
-    b = matlab.double([0, 250, 25, 0.1])  # scattering coefficient
-    a = matlab.double([0, 0.15, 0.15, 0.15]) # absorption coefficient
+    bnp[1:-1] = bnp[1:-1]  # Scale to respect the effective scattering coefficient
+    b = matlab.double(bnp.tolist())  # Scattering coefficient matlab format
+    phase_type = matlab.double([1, 1, 1, 1, 1])
 
-    # IOPs most probable at 544 nm (effective wavelength of green band)
-    # b = matlab.double([0, 250, 55, 0.1])  # scattering coefficient
-    # a = matlab.double([0, 0.0683, 0.0683, 0.0683])  # absorption 0.0683 m-1 Perovich and Grenfell 1981 at 540 nm
+    # Henyey-Greenstein First Moment, Assymmetry parameter
+    g_all = 0.98
+    g = eng.cell(1, 5)
+    g[0], g[4] = matlab.double([0.]), matlab.double([0.9])
+    g[1], g[2], g[3] = matlab.double([g_all]), matlab.double([g_all]), matlab.double([g_all])
 
-    g = matlab.double([0, 0.9, 0.9, 0.9])
-    n = matlab.double([1, 1.33, 1.33, 1.33])
+    # Refractive index
+    n = matlab.double([1.00, 1.00, 1.30, 1.30, 1.33])
 
-    # Incoming lambertian radiance (at 544 nm) from RAMSES TriOS irradiance measurements above sea ice
-    wl_dort = np.round(eff_wl[1])  # At effective wl of green band
-    arg_wl_dort = np.where(wl_dort == radiometer["wl"])
-    rad_inc = irradiance_incom.mean(axis=1)[arg_wl_dort]/np.pi
-    rad_inc_std = irradiance_incom.std(axis=1)[arg_wl_dort]/np.pi
+    for ii in range(3):
 
-    eng = matlab.engine.start_matlab()
-    dort_p, dort_r = eng.dort_simulation(number_layer, layer_thickness, b, a, g, n, depth, matlab.double(list(rad_inc)), nargout=2)
-    rad_dist_dort, zen_mesh_dort, azi_mesh_dort = compute_results_dort(dort_p, dort_r, bounds)
+        arg_wl_dort = np.where(eff_wl[ii] == radiometer_wl)
+        rad_inc = irr_incom.mean(axis=1)[arg_wl_dort]/np.pi
+        rad_inc_std = irr_incom.std(axis=1)[arg_wl_dort]/np.pi
 
-    e_dort_surf = irradiance(rad_dist_dort["0"], zen_mesh_dort, azi_mesh_dort, 0, 90)
-    e_dort_below = irradiance(rad_dist_dort["200"], zen_mesh_dort, azi_mesh_dort, 0, 90)
+        # DORT simulation paramters (absorption coefficient change according to wavelength)
+        if ii == 0:
+           a = matlab.double([0, 0.12, 0.12, 0.12, 0.12])  # absorption coefficient red
+        elif ii == 1:
+           a = matlab.double([0, 0.0683, 0.0683, 0.0683, 0.0683])  # absorption coefficient green
+        else:
+           a = matlab.double([0, 0.0430, 0.0430, 0.0430, 0.0430])  # absorption coefficient blue
 
-    print("DORT2002 transmittance --> {}".format(e_dort_below / e_dort_surf))
-    print("Camera transmittances --> red: {}, green: {}, blue: {}".format(Ed["r"][-1] / Ed["r"][0], Ed["g"][-1] / Ed["g"][0], Ed["b"][-1] / Ed["b"][0]))
+        opt_thickness = np.squeeze((np.array(a) + np.array(b)) * np.squeeze(np.array(layer_thickness)))  # (a+b) * H
+        reduced_b = np.squeeze(np.array(b)) * (1 - np.squeeze(np.array(g)))
+        w0 = np.squeeze(np.array(b)) / (np.squeeze(np.array(a) + np.squeeze(np.array(b))))
 
-    # Figures ____
-    # Fig 1 -
-    ax1[0, 0].set_ylabel(r"$\overline{{L}}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
-    ax1[1, 0].set_ylabel(r"$\frac{{\overline{{L}}}}{{\overline{{L}}_{{max}}}}$ [%]")
+        print("Optical thickness: {0:.2f}, {1:.2f}, {2:.2f}".format(opt_thickness[1], opt_thickness[2], opt_thickness[3]))
+        print("Reduced scattering: {0:.2f}, {1:.2f}, {2:.2f}".format(reduced_b[1], reduced_b[2], reduced_b[3]))
+        print("Single scattering albedo: {0:.9f}, {1:.9f}, {2:.9f}".format(w0[1], w0[2], w0[3]))
 
-    # Fig 2
-    fig2, ax2 = plt.subplots(2, 1, sharex=True, figsize=(ff.set_size(subplots=(1, 1))[0], ff.set_size(subplots=(1, 1))[1] * 1.5))
+        # DORT simulation
+        eng.cd(os.path.dirname(__file__))
+        dort_p, dort_r = eng.dort_simulation_oden(matlab.double([nstreams]), number_layer,
+                                                  layer_thickness, b, a, phase_type, g, n, depth,
+                                                  matlab.double(list(rad_inc)), nargout=2)
 
-    maskwl = (radiometer["wl"] <= 700) & (radiometer["wl"] >= 400)
-    trans = irradiance_below[maskwl] / irradiance_incom[maskwl]
-    argtr = np.argwhere(radiometer["wl"][maskwl] == np.round(eff_wl).reshape(-1, 1))
+        bounds = np.arange(0, 220, 20)
+        rad_dist_dort, zen_mesh_dort, azi_mesh_dort = compute_results_dort(dort_p, dort_r, bounds)
 
-    lines0 = ax2[0].plot(radiometer["wl"][maskwl], irradiance_incom[maskwl])
-    lines1 = ax2[1].plot(radiometer["wl"][maskwl], irradiance_below[maskwl])
-    #lines2 = ax2[2].plot(radiometer["wl"][maskwl], trans)
-    #ax2[2].errorbar(np.round(eff_wl), trans[argtr[:, 1], :].mean(axis=1), xerr=eff_bw/2, marker="o")
+        # Data in dict
+        rad_dort_band[str(ii)] = rad_dist_dort
 
-    ax2[0].set_ylabel("$E_{d, surface}(\lambda)$ [$\mathrm{W \cdot m^{-2} \cdot nm^{-1}}$]")
-    ax2[1].set_ylabel("$E_{d, below}(\lambda)$ [$\mathrm{W \cdot m^{-2} \cdot nm^{-1}}$]")  # W m-2 nm-1
-    #ax2[2].set_ylabel("Transmittance")
+    # Loop
+    # Pre-allocation
+    fig1, ax1 = plt.subplots(2, 3, sharey=True)
+    fig2, ax2 = plt.subplots(3, 1, sharey=True, figsize=ff.set_size(subplots=(2, 1)))
+    fig3, ax3 = create_figure_axe_3x3((ff.set_size(subplots=(2, 1))[0], 5.74))
 
-    ax2[1].set_xlabel("Wavelength [nm]")
+    depth_keys_order = ["20 cm (in water)",
+                        "40 cm",
+                        "60 cm",
+                        "80 cm",
+                        "100 cm",
+                        "120 cm",
+                        "140 cm",
+                        "160 cm"]
 
-    ax2[0].legend(lines0, timestamps[inx].values, fontsize=5, loc="best")
-    ax2[1].legend(lines1, timestamps[inx].values, fontsize=5, loc="best")
-    #ax2[2].legend(lines2, timestamps[inx].values, fontsize=5, loc="best")
+    conversion_dict = dict(zip(["zero minus",
+                        "20 cm (in water)",
+                        "40 cm",
+                        "60 cm",
+                        "80 cm",
+                        "100 cm",
+                        "120 cm",
+                        "140 cm",
+                        "160 cm",
+                        "180 cm",
+                        "200 cm"], list(rad_dist_dort.keys())))
+    # Irradiances
+    Ed = np.zeros(len(depth_keys_order), dtype=([('0', 'f4'), ('1', 'f4'), ('2', 'f4')]))
+    Eu = np.zeros(len(depth_keys_order), dtype=([('0', 'f4'), ('1', 'f4'), ('2', 'f4')]))
+    Eo = np.zeros(len(depth_keys_order), dtype=([('0', 'f4'), ('1', 'f4'), ('2', 'f4')]))
 
-    ax2[0].text(-0.1, 1.1, string.ascii_lowercase[0], transform=ax2[0].transAxes, size=11, weight='bold')
-    ax2[1].text(-0.1, 1.1, string.ascii_lowercase[1], transform=ax2[1].transAxes, size=11, weight='bold')
-    #ax2[2].text(-0.1, 1.1, string.ascii_lowercase[2], transform=ax2[2].transAxes, size=11, weight='bold')
+    # Colormap
+    colo = matplotlib.cm.get_cmap("cividis", len(depth_keys_order)+1)
 
+    depth_color = np.array([int(i.split(" ")[0]) for i in depth_keys_order])
+
+    colo_reds = build_cmap_2cond_color("Reds", depth_color)
+    colo_greens = build_cmap_2cond_color("Greens", depth_color)
+    colo_blues = build_cmap_2cond_color("Blues", depth_color)
+
+    cm_it = iter(colo.colors)
+    cm_it_r = iter(colo_reds(np.arange(0, colo_reds.N)))
+    cm_it_g = iter(colo_greens(np.arange(0, colo_greens.N)))
+    cm_it_b = iter(colo_blues(np.arange(0, colo_blues.N)))
+
+    colorbardepth(fig3, ax3[0, 2], colo_reds, depth_color)
+    colorbardepth(fig3, ax3[1, 2], colo_greens, depth_color)
+    colorbardepth(fig3, ax3[2, 2], colo_blues, depth_color)
+
+    # Other param
+    mre_profile = np.empty((len(depth_keys_order), 3))
+
+    for i, d_keys in enumerate(depth_keys_order):
+
+        current_rad_map = rad_profile[d_keys]
+
+        col = next(cm_it)
+        col_r = next(cm_it_r)
+        col_g = next(cm_it_g)
+        col_b = next(cm_it_b)
+
+        current_dort_rad_map = np.stack((rad_dort_band["0"][conversion_dict[d_keys]],
+                                        rad_dort_band["1"][conversion_dict[d_keys]],
+                                        rad_dort_band["2"][conversion_dict[d_keys]]), axis=2)
+
+        Ed[i] = tuple(r.irradiance(zen_mesh_dort, azi_mesh_dort, current_dort_rad_map, 0, 90))
+        Eu[i] = tuple(r.irradiance(zen_mesh_dort, azi_mesh_dort, current_dort_rad_map, 90, 180))
+        Eo[i] = tuple(r.irradiance(zen_mesh_dort, azi_mesh_dort, current_dort_rad_map, 0, 180, planar=False))
+
+        # Azimuthal average Measurements
+        az_average = r.azimuthal_average(current_rad_map)
+
+        # Azimuthal average DORT
+        az_average_dort = r.azimuthal_average(current_dort_rad_map)
+
+        for band in range(current_rad_map.shape[2]):
+
+            az_average_dort_interp = np.interp(ze_mesh[:, 0], zen_mesh_dort[:, 0], az_average_dort[:, band])
+
+            # Mean relative error (MUPD)
+            ref_values = 0.5 * (az_average_dort_interp + az_average[:, band])
+            rel_err = (az_average[:, band] - az_average_dort_interp) / ref_values
+            mre_profile[i, band] = np.nanmean(rel_err)
+
+            # Plot
+            # Axe 1
+            ax1[0, band].plot(ze_mesh[:, 0], az_average[:, band], color=col)
+
+            ax1[0, band].set_yscale("log")
+            ax1[0, band].set_xlim((20, 160))
+
+            ax1[1, band].plot(ze_mesh[:, 0], az_average_dort_interp, color=col)
+            ax1[1, band].set_yscale("log")
+            ax1[1, band].set_xlim((20, 160))
+
+            ax1[1, band].set_xlabel("Zenith angle [˚]")
+
+            # Axe 2
+            if i == 0:
+                ax2[band].plot(ze_mesh[:, 0], az_average[:, band], color=col, label="Field data")
+                ax2[band].plot(ze_mesh[:, 0], az_average_dort_interp, linestyle="-.", color=col, label="Simulations")
+            else:
+                ax2[band].plot(ze_mesh[:, 0], az_average[:, band], color=col)
+                ax2[band].plot(ze_mesh[:, 0], az_average_dort_interp, linestyle="-.", color=col)
+
+            ax2[band].set_yscale("log")
+            ax2[band].set_xlim((20, 160))
+
+            ax2[band].set_ylabel("Absolute radiance")
+
+            # Axe 3
+            if band == 0:
+                curr_col = col_r
+            elif band == 1:
+                curr_col = col_g
+            else:
+                curr_col = col_b
+
+            ax3[band, 0].plot(ze_mesh[:, 0], az_average[:, band], linestyle="-", color=curr_col)
+            ax3[band, 1].plot(ze_mesh[:, 0], az_average_dort_interp, linestyle="-.", color=curr_col)
+            ax3[band, 2].plot(ze_mesh[:, 0], rel_err * 100, color=curr_col)
+
+            ax3[band, 0].set_yscale("log")
+            ax3[band, 1].set_xlim((20, 160))
+            ax3[band, 1].set_yscale("log")
+
+            ax3[band, 0].set_ylabel("$\overline{L}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
+            ax3[band, 1].set_ylabel("$\overline{L}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
+            ax3[band, 2].set_ylabel("relative error [%]")
+
+    mupd = mre_profile.mean(axis=0) * 100
+    print(mupd)
+    print(mupd.mean())
+
+    # Mean cosine
+    # mu_r = utils.meancosine(Ed["0"], Eu["0"], Eo["0"])
+    # mu_g = utils.meancosine(Ed["1"], Eu["1"], Eo["1"])
+    # mu_b = utils.meancosine(Ed["2"], Eu["2"], Eo["2"])
+
+    # Figures
+    # Figure 1
+    ax1[0, 0].set_ylabel("Absolute radiance")
+    ax1[1, 0].set_ylabel("Absolute radiance")
+
+    # Figure 2
+    ax2[2].set_xlabel("Zenith angle [˚]")
+    ax2[0].legend(loc="best")
+
+    # Figure 3
+    ax3[2, 0].set_xlabel("Zenith [˚]")
+    ax3[2, 1].set_xlabel("Zenith [˚]")
+    ax3[2, 2].set_xlabel("Zenith [˚]")
+
+    ax3[0, 2].text(25, np.round(np.max(mre_profile * 100)) + 8, "MUAPD = {0:.2f} %".format(mupd[0]), fontsize=6)
+    ax3[1, 2].text(25, np.round(np.max(mre_profile * 100)) + 8, "MUAPD = {0:.2f} %".format(mupd[1]), fontsize=6)
+    ax3[2, 2].text(25, np.round(np.max(mre_profile * 100)) + 8, "MUAPD = {0:.2f} %".format(mupd[2]), fontsize=6)
+
+    # Figure 4
+    fig4, ax4 = scattering_coeff_figure(b, layer_thickness, ff.set_size(subplots=(1, 1)))
+
+    fig1.tight_layout()
     fig2.tight_layout()
-
-    # Figure 3 - triOS transmittance
-    fig3, ax3 = plt.subplots(1, 1, figsize=ff.set_size())
-
-    lines2 = ax3.plot(radiometer["wl"][maskwl], trans)
-    ax3.errorbar(np.round(eff_wl), trans[argtr[:, 1], :].mean(axis=1), xerr=eff_bw/2,
-                 linestyle="none", marker="o", ecolor="k", markeredgecolor="k", markerfacecolor="None")
-
-    ax3.legend(lines2, timestamps[inx].values, fontsize=5, loc="best")
-
-    ax3.set_ylabel("Transmittance")
-    ax3.set_xlabel("Wavelength [nm]")
-
-
-    # Fig 4 - results dort
-    plot_dort_absolute_radiance(ax4[0, 0], rad_dist_dort, zen_mesh_dort, colo)
-    plot_dort_relative_radiance(ax4[1, 0], rad_dist_dort, zen_mesh_dort, colo)
-
-    ax4[0, 0].set_yscale("log")
-    #ax4[0, 0].set_ylim((2.5842052131699986e-05, 0.033625178581195549))
-
-    ax4[0, 0].set_ylabel("$\overline{L}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
-    ax4[1, 0].set_ylabel("Relative radiance [%]")
-    ax4[1, 0].set_xlabel("Zenith [˚]")
-
-    ax4[0, 0].text(-0.1, 1.1, string.ascii_lowercase[0], transform=ax4[0, 0].transAxes, size=11, weight='bold')
-    ax4[0, 1].text(-0.1, 1.1, string.ascii_lowercase[1], transform=ax4[0, 1].transAxes, size=11, weight='bold')
-
-    # Fig 5 - polar plot DORT2002
-    fig5, ax5 = plt.subplots(1, 1, subplot_kw=dict(projection='polar'), figsize=ff.set_size())
-    contour_plot_dort(fig5, ax5, rad_dist_dort["60"], zen_mesh_dort, azi_mesh_dort, 20)
-
-    # Saving figures ___
-    fig_cont.tight_layout()
     fig3.tight_layout()
     fig4.tight_layout()
 
-    fig_cont.savefig("figures/oden_contour.pdf", format="pdf", dpi=600)
-    fig2.savefig("figures/triOS.pdf", format="pdf", dpi=600)
-    fig3.savefig("figures/triOS_transmittance", format="pdf", dpi=600)
-    fig4.savefig("figures/oden_profiles.pdf", format="pdf", dpi=600)
+    # Save figure
+    fig3.savefig("figures/dort_simulations.pdf", format="pdf", dpi=600)
 
     plt.show()
