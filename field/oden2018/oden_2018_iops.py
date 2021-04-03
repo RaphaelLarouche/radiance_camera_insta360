@@ -195,7 +195,7 @@ if __name__ == "__main__":
     #bnp = np.array([0, 2300, 300, 80, 0.1])  # For g = 0.98
     #bnp = np.array([0,  2313.21860285,   308.42726122,    80.75973847, 0.1])
     # bnp = np.array([0, 2500, 2000, 100, 0.1])  # For g = 0.98
-    bnp = np.array([0, 2313, 308, 81, 0.1])
+    bnp = np.array([0, 2277, 303, 79, 0.1])
 
     bnp[1:-1] = bnp[1:-1]  # Scale to respect the effective scattering coefficient
     b = matlab.double(bnp.tolist())  # Scattering coefficient matlab format
