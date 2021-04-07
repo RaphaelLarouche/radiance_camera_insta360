@@ -125,6 +125,12 @@ if __name__ == "__main__":
         axrad[1].plot(zen[:, 0], azimuthal_average[:, 1], linewidth=2, color=cl, label=k)
         axrad[2].plot(zen[:, 0], azimuthal_average[:, 2], linewidth=2, color=cl, label=k)
 
+    # Gershun law estimation of absorption coefficient
+    absorption = np.zeros(len(wanted_depth), dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4')]))
+    absorption["r"]= r.attenuation_coefficient((Ed["r"] - Eu["r"]), depths) * ((Ed["r"] - Eu["r"]) / Eo["r"])
+    absorption["g"] = r.attenuation_coefficient((Ed["g"] - Eu["g"]), depths) * ((Ed["g"] - Eu["g"]) / Eo["g"])
+    absorption["b"] = r.attenuation_coefficient((Ed["b"] - Eu["b"]), depths) * ((Ed["b"] - Eu["b"]) / Eo["b"])
+
     # Figure
     fs = ff.set_size(subplots=(2, 2))
     fig1, ax1 = plt.subplots(1, 3, sharey=True, sharex=True, figsize=ff.set_size(subplots=(1, 3)))
@@ -168,7 +174,7 @@ if __name__ == "__main__":
     ax2[0].set_xlabel("$\overline{\mu_{d}}$")
     ax2[1].set_xlabel("$\overline{\mu_{u}}$")
     ax2[2].set_xlabel("$\overline{\mu}$")
-    ax2[3].set_xlabel("$\kappa~[\mathrm{m^{-1}}]$")
+    ax2[3].set_xlabel("$\kappa_{d}~[\mathrm{m^{-1}}]$")
 
     # Figure rad
     axrad[0].set_yscale("log")
