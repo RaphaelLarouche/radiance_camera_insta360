@@ -188,7 +188,7 @@ if __name__ == "__main__":
     eng = matlab.engine.start_matlab()
     nstreams = 30
     number_layer = 5.0
-    layer_thickness = matlab.double([100, 0.1, 0.7, 1.2, 10.0])  # in meters
+    layer_thickness = matlab.double([100, 0.1, 0.7, 1.2, 100.0])  # in meters
     depth = matlab.double(list(np.arange(100, 102.1, 0.1)))
 
     # Scattering properties ______
