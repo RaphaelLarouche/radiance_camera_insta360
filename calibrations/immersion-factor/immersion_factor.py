@@ -308,7 +308,7 @@ if __name__ == "__main__":
     dn_water_zero = np.empty((1, 3))
     inter = np.empty((1, 3))
     inter_std = np.empty((1, 3))
-    tx = "$ln~DN_{{i}}(z) = m \cdot z + b$\n$m = ({0:.3f}\pm{1:.3f})$\n$b = ({2:.3f}\pm{3:.3f})$\n$r^{{2}} = {4:.3f}$"
+    tx = "$ln~DN_{{i}}(z) = m \cdot z + b$\n$m = ({0:.3f}\pm{1:.3f})$\n$b = ({2:.3f}\pm{3:.3f})$\n$R^{{2}} = {4:.3f}$"
 
     fig1, ax1 = plt.subplots(3, 1, figsize=(ff.set_size(subplots=(2, 1), fraction=0.7)[0], ff.set_size(subplots=(2, 1))[1] * 0.8))
 
