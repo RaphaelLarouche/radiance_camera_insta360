@@ -214,6 +214,7 @@ if __name__ == "__main__":
 
         arg_wl_dort = np.where(eff_wl[ii] == radiometer_wl)
         rad_inc = irr_incom.mean(axis=1)[arg_wl_dort]/np.pi
+        print(rad_inc)
         rad_inc_std = irr_incom.std(axis=1)[arg_wl_dort]/np.pi
 
         # DORT simulation paramters (absorption coefficient change according to wavelength)
@@ -377,6 +378,15 @@ if __name__ == "__main__":
     mupd = mre_profile.mean(axis=0) * 100
     print(mupd)
     print(mupd.mean())
+
+    # Transmittance
+    rd_b_surf = np.stack((rad_dort_band["0"]["20"], rad_dort_band["1"]["20"], rad_dort_band["2"]["20"]), axis=2)
+    rd_b_below = np.stack((rad_dort_band["0"]["160"], rad_dort_band["1"]["160"], rad_dort_band["2"]["160"]), axis=2)
+
+    e_dort_surf = r.irradiance(zen_mesh_dort, azi_mesh_dort, rd_b_surf, 0, 90)
+    e_dort_below = r.irradiance(zen_mesh_dort, azi_mesh_dort, rd_b_below, 0, 90)
+
+    transmittance = e_dort_below / e_dort_surf
 
     # Mean cosine
     # mu_r = utils.meancosine(Ed["0"], Eu["0"], Eo["0"])
