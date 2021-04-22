@@ -649,7 +649,7 @@ class ImageRadiancei360(ProcessImage):
         if self.medium == "air":
             _fov = 90.0
         elif self.medium == "water":
-            _fov = 70.0
+            _fov = 72.0
         else:
             raise ValueError("Medium attribute seems to be invalid.")
         return _fov
