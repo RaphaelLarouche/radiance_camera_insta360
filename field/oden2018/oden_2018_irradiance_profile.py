@@ -131,11 +131,18 @@ if __name__ == "__main__":
     absorption["g"] = r.attenuation_coefficient((Ed["g"] - Eu["g"]), depths) * ((Ed["g"] - Eu["g"]) / Eo["g"])
     absorption["b"] = r.attenuation_coefficient((Ed["b"] - Eu["b"]), depths) * ((Ed["b"] - Eu["b"]) / Eo["b"])
 
+    # Transmittance
+    T = np.array(list(Ed[-3])) / np.array(list(Ed[1]))  # between 20 cm and 160 cm
+
     # Figure
     fs = ff.set_size(subplots=(2, 2))
     fig1, ax1 = plt.subplots(1, 3, sharey=True, sharex=True, figsize=ff.set_size(subplots=(1, 3)))
-    fig2, ax2 = plt.subplots(2, 2, sharey=True, figsize=(fs[0], fs[1] * 1.5))
+    #fig2, ax2 = plt.subplots(2, 2, sharey=True, figsize=(fs[0], fs[1] * 1.5))
+    fig2, ax2 = plt.subplots(1, 3, sharey=True, figsize=ff.set_size(subplots=(1, 3)))
     ax2 = ax2.ravel()
+    #fig3, ax3 = plt.subplots(1, 2, sharey=True, figsize=ff.set_size(subplots=(1, 2)))
+    fig3, ax3 = plt.subplots(1, 1, sharey=True, figsize=ff.set_size())
+    fig4, ax4 = plt.subplots(1, 1, sharey=True, figsize=ff.set_size())
 
     dicband = {0: "r", 1: "g", 2: "b"}
     ls = {"r": "-", "g": "-.", "b": ":"}
@@ -145,9 +152,9 @@ if __name__ == "__main__":
     for i, k in enumerate(dicband.values()):
 
         # Axe 1
-        ax1[i].plot(Ed[k], depths, color=colo[k], linestyle=ls[k], marker=".", label="$E_{d}$")
-        ax1[i].plot(Eu[k], depths, color=colo[k], linestyle=ls[k], marker=".", label="$E_{u}$")
-        ax1[i].plot(Eo[k], depths, color=colo[k], linestyle=ls[k], marker=".", label="$E_{o}$")
+        ax1[i].plot(Ed[k], depths, color=colo[k], linestyle="-", marker=".", label="$E_{d}$")
+        ax1[i].plot(Eu[k], depths, color=colo[k], linestyle="-.", marker=".", label="$E_{u}$")
+        ax1[i].plot(Eo[k], depths, color=colo[k], linestyle=":", marker=".", label="$E_{0}$")
 
         ax1[i].set_xscale("log")
         ax1[i].invert_yaxis()
@@ -160,7 +167,9 @@ if __name__ == "__main__":
         ax2[0].plot(Ed[k] / Edo[k], depths, color=colo[k], linestyle=ls[k], label=labe[k])
         ax2[1].plot(Eu[k] / Euo[k], depths, color=colo[k], linestyle=ls[k], label=labe[k])
         ax2[2].plot((Ed[k] - Eu[k]) / Eo[k], depths, color=colo[k], linestyle=ls[k], label=labe[k])
-        ax2[3].plot(r.attenuation_coefficient(Ed[k], depths), depths, linestyle=ls[k], color=colo[k], label=labe[k])
+
+        ax3.plot(r.attenuation_coefficient(Ed[k], depths), depths, linestyle=ls[k], color=colo[k], label=labe[k])
+        ax4.plot(absorption[k], depths, color=colo[k], linestyle=ls[k], marker=".", label=labe[k])
 
     # Figure parameters
     # Figure 1
@@ -169,12 +178,10 @@ if __name__ == "__main__":
     # Figure 2
     ax2[0].invert_yaxis()
     ax2[0].set_ylabel("Depth [cm]")
-    ax2[2].set_ylabel("Depth [cm]")
     ax2[0].legend(loc="best", fontsize=8)
-    ax2[0].set_xlabel("$\overline{\mu_{d}}$")
-    ax2[1].set_xlabel("$\overline{\mu_{u}}$")
-    ax2[2].set_xlabel("$\overline{\mu}$")
-    ax2[3].set_xlabel("$\kappa_{d}~[\mathrm{m^{-1}}]$")
+    ax2[0].set_xlabel("$\mu_{d}$")
+    ax2[1].set_xlabel("$\mu_{u}$")
+    ax2[2].set_xlabel("$\mu$")
 
     # Figure rad
     axrad[0].set_yscale("log")
@@ -183,12 +190,33 @@ if __name__ == "__main__":
     axrad[2].set_xlabel("Zenith angle [˚]")
     axrad[0].set_ylabel(r"$\overline{{L}}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
 
+    # Figure 3
+    ax3.set_xticks(np.arange(-1, 10, 1))
+    ax3.invert_yaxis()
+    ax3.set_xlim((-0.1, 9))
+    ax3.set_ylabel("Depth [cm]")
+    ax3.set_xlabel("$\kappa_{d}~[\mathrm{m^{-1}}]$")
+
+    ax3.legend(loc="best")
+
+    # ax4.set_xticks(np.arange(-0.5, 3.5, 0.5))
+    # ax4.set_xlim((-0.1, 3.1))
+    ax4.invert_yaxis()
+    ax4.set_xscale("log")
+    ax4.set_ylabel("Depth [cm]")
+    ax4.set_xlabel("$a~[\mathrm{m^{-1}}]$")
+    ax4.legend(loc="best")
+
     fig1.tight_layout()
     fig2.tight_layout()
+    fig3.tight_layout()
+    fig4.tight_layout()
     figrad.tight_layout()
 
     # Saving figures
     fig1.savefig("figures/irradiance_profile.pdf", format="pdf", dpi=600)
     fig2.savefig("figures/aops.pdf", format="pdf", dpi=600)
+    fig3.savefig("figures/diffuse_attenuation_downwelling.pdf", format="pdf", dpi=600)
+    fig4.savefig("figures/absorption_coefficient.pdf", format="pdf", dpi=600)
 
     plt.show()
