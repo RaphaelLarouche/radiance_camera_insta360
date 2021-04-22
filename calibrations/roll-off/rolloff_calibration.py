@@ -174,10 +174,10 @@ if __name__ == "__main__":
         plot_rolloff(ax3[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], roff_centro_90_norm["DN_std"][:, band], "s", "none", "$\phi = $90˚ ($k=1$ uncertainty)")
 
         ax3[band].plot(theta, process.rolloff_polynomial(theta, *poptall), color="k", linewidth=1.7, linestyle="-", label="Fit")
-        ax3[band].text(52, 0.91, "{0}\n$r^{{2}}={1:.5f}$".format(lab[band], rsquareall), fontsize=9)
+        ax3[band].text(52, 0.91, "{0}\n$R^{{2}}={1:.5f}$".format(lab[band], rsquareall), fontsize=9)
 
         ax2[band].plot(theta, process.rolloff_polynomial(theta, *poptall), color=col, linewidth=1.7, linestyle="-", label="Polynomial fit")
-        ax2[band].text(52, 0.91, "$k=1$ standard uncertainty\n$r^{{2}}={0:.5f}$".format(rsquareall), fontsize=9)
+        ax2[band].text(52, 0.91, "$k=1$ standard uncertainty\n$R^{{2}}={0:.5f}$".format(rsquareall), fontsize=9)
 
         # Figure 9
         ax4.plot(roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], marker=marker[band], markersize=3, linestyle="none", markeredgecolor="k", markerfacecolor="none", alpha=0.5, label=lab[band])
