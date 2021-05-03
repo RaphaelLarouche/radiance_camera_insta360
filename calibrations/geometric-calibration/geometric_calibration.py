@@ -17,7 +17,52 @@ import matplotlib.pyplot as plt
 import source.processing as processing
 from source.geometric_rolloff import MatlabGeometricMengine
 
+
 # Functions
+def show_reprojectionerrors(band_data, matlab_data, geodict, imagenumber, band="red"):
+    """
+
+    :param band_data:
+    :param matlab_data:
+    :param geodict:
+    :param band:
+    :return:
+    """
+
+    if np.divmod(np.sqrt(imagenumber), 1)[1] == 0:
+
+        images = band_data[band]["image_tot"]
+        repropoints = geodict[band].fisheye_params["ReprojectedPoints"]
+        corners = np.array(matlab_data[band])
+
+        images = images[:imagenumber, :, :]
+        repropoints = repropoints[:, :, :imagenumber]
+        corners = corners[:, :, :imagenumber]
+
+        fig, ax = plt.subplots(np.sqrt(imagenumber).astype(int), np.sqrt(imagenumber).astype(int))
+
+        for i, a in enumerate(ax.ravel()):
+
+            a.plot(corners[:, 0, i], corners[:, 1, i], "o", markersize=4, markeredgecolor="g", markerfacecolor="none", label="algorithm detection")
+            a.plot(repropoints[:, 0, i], repropoints[:, 1, i], "r+", markersize=4, label="reprojected points")
+
+            xlm = a.get_xlim()
+            ylm = a.get_ylim()
+
+            a.imshow(images[i, :, :], cmap="viridis")
+
+            a.set_xlim(xlm)
+            a.set_ylim(ylm)
+
+            a.set_xticklabels([])
+            a.set_yticklabels([])
+
+        ax[0, 0].legend(loc="best")
+
+    else:
+        raise ValueError("Invalid number of image")
+
+    return fig, ax
 
 
 if __name__ == "__main__":
@@ -97,6 +142,7 @@ if __name__ == "__main__":
 
     ls = ["-", "-.", ":"]
     lab = ["602 nm", "544 nm", "484 nm"]
+    color = ['#d62728', '#2ca02c', '#1f77b4']
     geo = {}
     fp = {}
     ierror = {}
@@ -120,10 +166,10 @@ if __name__ == "__main__":
         # Interpolation
         r_dws = np.linspace(0, 810 * 1.05, 1000)
         z_dws = np.interp(r_dws, res[0], res[1])  # interpolation
-        ax1[0].plot(r_dws, z_dws, color="k", linestyle=ls[n], label=lab[n])
+        ax1[0].plot(r_dws, z_dws, color=color[n], linestyle=ls[n], label=lab[n])
 
     ax1[0].plot(np.interp(76, res[1], res[0]), 76, markersize=5, marker="d", markerfacecolor="none", color="k")
-    ax1[0].annotate("76˚ FOV limit", xy=(np.interp(76, res[1], res[0]), 76), xytext=(-50, -70), textcoords='offset points',
+    ax1[0].annotate("76˚ FoV limit", xy=(np.interp(76, res[1], res[0]), 76), xytext=(-50, -70), textcoords='offset points',
                     arrowprops=dict(arrowstyle="->", shrinkA=3, shrinkB=3, color="red"), fontsize=9)
 
     # Figures
@@ -172,10 +218,11 @@ if __name__ == "__main__":
 
     ax2[0].legend(loc="best")
 
-    #fig3, ax3 = show_reprojectionerrors(band_data, band_matlab_data, geo, 4,  band="green")
+    fig3, ax3 = show_reprojectionerrors(band_data, band_matlab_data, geo, 4,  band="red")
 
     fig1.tight_layout(w_pad=1.5)
     fig2.tight_layout()
+    fig3.tight_layout()
 
     # Saving calibration results
     answer = process.save_results()
