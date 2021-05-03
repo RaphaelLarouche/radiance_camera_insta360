@@ -135,19 +135,22 @@ if __name__ == "__main__":
     fig3, ax3 = plt.subplots(3, 1, sharex=True, figsize=(6.4, 7))
 
     # Fig 9
-    fig4, ax4 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7, height_ratio=0.53))
+    #fig4, ax4 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7, height_ratio=0.53))
+    fig4, ax4 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7))
 
     # Fitting
     theta = np.linspace(0, 80, 100)
     marker = ["o", "s", "d"]
 
     color = iter(['#d62728', '#2ca02c', '#1f77b4'])
-    lab = ["602 nm", "544 nm", "484 nm"]
+    lab = ["red: 602 nm", "green: 544 nm", "blue: 484 nm"]
+    lab_fit = ["fit red: ", "fit green: ", "fit blue: "]
     ls = ["-", "-.", ":"]
 
     fitresults = np.empty((3, 5))
 
-    legp, legst = [], []
+    leg_p1, legst_p1 = [], []
+    leg_p2, legst_p2 = [], []
 
     for band in range(roff_centro.shape[1]):
         # Fit
@@ -167,28 +170,40 @@ if __name__ == "__main__":
         # Plots
         col = next(color)
 
-        plot_rolloff(ax2[band], roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], roff_centro_norm["DN_std"][:, band], "o", col, "0˚ azimuth "+lab[band])
-        plot_rolloff(ax2[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], roff_centro_90_norm["DN_std"][:, band], "s", col, "90˚ azimuth "+lab[band])
+        plot_rolloff(ax2[band], roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band],
+                     roff_centro_norm["DN_std"][:, band], "o", col, "0˚ azimuth "+lab[band])
+        plot_rolloff(ax2[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band],
+                     roff_centro_90_norm["DN_std"][:, band], "s", col, "90˚ azimuth "+lab[band])
 
-        plot_rolloff(ax3[band], roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], roff_centro_norm["DN_std"][:, band], "o", "none", "$\phi = $0˚($k=1$ uncertainty)")
-        plot_rolloff(ax3[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], roff_centro_90_norm["DN_std"][:, band], "s", "none", "$\phi = $90˚ ($k=1$ uncertainty)")
+        plot_rolloff(ax3[band], roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band],
+                     roff_centro_norm["DN_std"][:, band], "o", "none", "$\phi = $0˚($k=1$ uncertainty)")
+        plot_rolloff(ax3[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band],
+                     roff_centro_90_norm["DN_std"][:, band], "s", "none", "$\phi = $90˚ ($k=1$ uncertainty)")
 
+        # Figure 2
+        ax2[band].plot(theta, process.rolloff_polynomial(theta, *poptall), color=col, linewidth=1.7, linestyle="-",
+                       label="Polynomial fit")
+        ax2[band].text(52, 0.91, "$k=1$ standard uncertainty\n$R^{{2}}={0:.5f}$".format(rsquareall), fontsize=9)
+
+        # Figure 3
         ax3[band].plot(theta, process.rolloff_polynomial(theta, *poptall), color="k", linewidth=1.7, linestyle="-", label="Fit")
         ax3[band].text(52, 0.91, "{0}\n$R^{{2}}={1:.5f}$".format(lab[band], rsquareall), fontsize=9)
 
-        ax2[band].plot(theta, process.rolloff_polynomial(theta, *poptall), color=col, linewidth=1.7, linestyle="-", label="Polynomial fit")
-        ax2[band].text(52, 0.91, "$k=1$ standard uncertainty\n$R^{{2}}={0:.5f}$".format(rsquareall), fontsize=9)
+        # Figure 4 -- ROLLOFF PAPER FIGURE
+        p1 = ax4.plot(roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], marker=marker[band], markersize=3,
+                 linestyle="none", markeredgecolor=col, markerfacecolor="none", alpha=0.9)
+        ax4.plot(roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], marker=marker[band],
+                 markersize=3, linestyle="none", markeredgecolor=col, markerfacecolor="none", alpha=0.9)
 
-        # Figure 9
-        ax4.plot(roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], marker=marker[band], markersize=3, linestyle="none", markeredgecolor="k", markerfacecolor="none", alpha=0.5, label=lab[band])
-        ax4.plot(roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], marker=marker[band], markersize=3, linestyle="none", markeredgecolor="k", markerfacecolor="none", alpha=0.5,)
-        p = ax4.plot(theta, process.rolloff_polynomial(theta, *poptall), color="k", linestyle=ls[band])
+        tfit = "$a_{0}$ = %.2E $a_{2}$ = %.2E $a_{4}$ = %.2E $a_{6}$ = %.2E  $a_{8}$ = %.2E" % tuple(fitresults[band, :])
+        p2 = ax4.plot(theta, process.rolloff_polynomial(theta, *poptall), color=col, linestyle=ls[band])  # Fit
 
-        legp.append(p[0])
-        legst.append("$a_{0}$ = %.2E $a_{2}$ = %.2E $a_{4}$ = %.2E $a_{6}$ = %.2E  $a_{8}$ = %.2E" % tuple(fitresults[band, :]))
+        leg_p1.append(p1[0])
+        leg_p2.append(p2[0])
+        legst_p1.append(lab[band])
+        legst_p2.append(lab_fit[band] + tfit)
 
-    leg = plt.legend(legp, legst, fontsize=5, frameon=False)
-
+    leg = plt.legend(leg_p1 + leg_p2, legst_p1 + legst_p2, fontsize=5, frameon=False)
     ax4.add_artist(leg)
 
     # Fig3 parameters
@@ -212,9 +227,10 @@ if __name__ == "__main__":
 
     # Figure 9
     ax4.set_xticks(np.arange(0, 90, 10))
+    ax4.set_ylim((0.2, 1.0338603520703975))
     ax4.set_xlabel(r"$\theta$ [˚]")
     ax4.set_ylabel(r"$R(\theta)$")
-    ax4.legend(loc="best")
+    #ax4.legend(loc=3, fontsize=5)
 
     fig3.tight_layout()
     fig4.tight_layout()
