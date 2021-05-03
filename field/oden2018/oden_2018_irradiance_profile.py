@@ -5,6 +5,7 @@ Oden icebreaker A02018 mission, irradiance profiles.
 
 # Module importation
 import glob
+import string
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -160,6 +161,7 @@ if __name__ == "__main__":
         ax1[i].invert_yaxis()
 
         ax1[i].set_xlabel("$E~[\mathrm{W \cdot m^{-2} \cdot nm^{-1}}]$")
+        ax1[i].text(-0.05, 1.05, "(" + string.ascii_lowercase[i] + ")", transform=ax1[i].transAxes, size=11, weight='bold')
 
         ax1[i].legend(loc="best")
 
