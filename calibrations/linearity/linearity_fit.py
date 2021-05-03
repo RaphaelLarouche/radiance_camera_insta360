@@ -200,8 +200,8 @@ if __name__ == "__main__":
     x = np.linspace(tintms.min() * 0.8, tintms.max() * 1.2, 50)
     x_iso = np.linspace(iso.min() * 0.8, iso.max() * 1.2, 50)
 
-    tx_exp = "$DN_{{i}} = m \cdot t_{{int}} + b$\n$m = ({0:.2f}\pm{1:.2f})$\n$b = ({2:.0f}\pm{3:.0f})$\n$r^{{2}} = {4:.6f}$"
-    tx_iso = "$DN_{{i}} = m \cdot ISO \cdot 0.01 + b$\n$m = ({0:.2f}\pm{1:.2f})$\n$b = ({2:.0f}\pm{3:.0f})$\n$r^{{2}} = {4:.6f}$"
+    tx_exp = "$DN_{{i}} = m \cdot t_{{int}} + b$\n$m = ({0:.2f}\pm{1:.2f})$\n$b = ({2:.0f}\pm{3:.0f})$\n$R^{{2}} = {4:.6f}$"
+    tx_iso = "$DN_{{i}} = m \cdot ISO \cdot 0.01 + b$\n$m = ({0:.2f}\pm{1:.2f})$\n$b = ({2:.0f}\pm{3:.0f})$\n$R^{{2}} = {4:.6f}$"
 
     for b in range(dn_exp.shape[1]):
 
