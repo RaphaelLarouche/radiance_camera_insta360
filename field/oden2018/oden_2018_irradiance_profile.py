@@ -170,6 +170,8 @@ if __name__ == "__main__":
         ax2[1].plot(Eu[k] / Euo[k], depths, color=colo[k], linestyle=ls[k], label=labe[k])
         ax2[2].plot((Ed[k] - Eu[k]) / Eo[k], depths, color=colo[k], linestyle=ls[k], label=labe[k])
 
+        ax2[i].text(-0.05, 1.05, "(" + string.ascii_lowercase[i] + ")", transform=ax2[i].transAxes, size=11, weight='bold')
+
         ax3.plot(r.attenuation_coefficient(Ed[k], depths), depths, linestyle=ls[k], color=colo[k], label=labe[k])
         ax4.plot(absorption[k], depths, color=colo[k], linestyle=ls[k], marker=".", label=labe[k])
 
