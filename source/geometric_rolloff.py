@@ -4,6 +4,8 @@ Classes for geometric calibration methods of insta360 ONE.
 """
 
 # Module importation
+import os
+import deepdish
 import numpy as np
 import matlab.engine
 import matplotlib.cm
@@ -456,18 +458,51 @@ class MatlabGeometricMengine(MatlabGeometric):
 
 class RolloffFunctions(ProcessImage):
     """
-
+    Functions for relative-illumination (roll-off) calibration.
     """
-    def __init__(self, fp, ierror, lens):
+    def __init__(self, lens, medium, valmin=1E3, valmax=1E4):
+
+        # Path to root
+        self.basepath = os.path.dirname(os.path.dirname(__file__))
+
+        # Attributes
+        self.which_lens = lens
+        self.medium = medium
+        self.valmin = valmin
+        self.valmax = valmax
 
         # Geometric calibration
-        self.geo = {}
+        self.geo = self.open_geometric_calibration()
+        self.ims = np.array(np.round(self.geo["red"].imsize)).astype(int)
 
-        for ke in fp.keys():
-            self.geo[ke] = MatlabGeometricMengine(fp[ke], ierror[ke])
+    def open_geometric_calibration(self):
+        """
+        Opening the geometric calibration of either lens close/far or medium air/water.
+        :return: dictionary g with MatlabGeometricMengine instance for each band
+        """
+        bpath = self.basepath + "/calibrations/geometric-calibration/calibrationfiles/"
 
-        # Which lens
-        self.which_lens = lens
+        if self.which_lens == "close":
+            if self.medium.lower() == "air":
+                geocalib = deepdish.io.load(bpath + "geometric-calibration-air.h5", "/lens-close/20190104_192404/")
+            elif self.medium.lower() == "water":
+                geocalib = deepdish.io.load(bpath + "geometric-calibration-water.h5", "/lens-close/20200730_112353/")
+            else:
+                raise ValueError("Invalid entry")
+        elif self.which_lens == "far":
+            if self.medium.lower() == "air":
+                geocalib = deepdish.io.load(bpath + "geometric-calibration-air.h5", "/lens-far/20190104_214037/")
+            elif self.medium.lower() == "water":
+                geocalib = deepdish.io.load(bpath + "geometric-calibration-water.h5", "/lens-far/20200730_143716/")
+            else:
+                raise ValueError("Invalid entry")
+        else:
+            raise ValueError("Invalid entry")
+        # BUILDING DICTIONARY
+        g = {}
+        for ke in geocalib["fp"].keys():
+            g[ke] = MatlabGeometricMengine(geocalib["fp"][ke], geocalib["ierror"][ke])
+        return g
 
     def rolloff_centroid_water(self, imlist, nremove, npixel=15, azimuth="0"):
         """
@@ -482,8 +517,7 @@ class RolloffFunctions(ProcessImage):
             imlist = imlist[nremove:-nremove]
 
         # Pre-allocation
-        ims = np.array(np.round(self.geo["red"].imsize)).astype(int)
-        imtotal = np.zeros((ims[0], ims[1], 3))
+        imtotal = np.zeros((self.ims[0], self.ims[1], 3))
 
         centroid = np.empty((len(imlist), 3), dtype=[("y", "float32"), ("x", "float32")])
         rolloff = np.empty((len(imlist), 3), dtype=[("a", "float32"), ("DN_avg", "float32"), ("DN_std", "float32")])
@@ -496,30 +530,20 @@ class RolloffFunctions(ProcessImage):
 
             im_dws, metadata = self.initial_process_i360(path)
 
-            # Gain and integration time
-            print(self.extract_iso(metadata))
-            print(self.extract_integrationtime(metadata))
-
-            # Region properties for the centroids
-            bin, region_properties = self.region_properties(im_dws[:, :, 0], 1E3, 1E4)  # Red image
-
             # Image total
             imtotal += im_dws
 
-            # Filtering regionproperties using centroid position
-            if azimuth == "0":
-                region_properties = [reg for reg in region_properties if reg.centroid[0] > (ims[0] // 2 - 30)]
-            elif azimuth == "90":
-                region_properties = [reg for reg in region_properties if (ims[1] // 2 + 200) > reg.centroid[1] > (ims[1] // 2 - 200)]
+            # Region properties for the centroids
+            _, region_properties = self.region_properties(im_dws[:, :, 0], self.valmin, self.valmax)  # Red image
+            rp = self.filtering_region_properties(region_properties, azimuth_plane=azimuth)
 
-            if region_properties:
+            if rp:
                 ke = {0: "red", 1: "green", 2: "blue"}
 
                 for j, k in enumerate(self.geo.keys()):
 
                     _, zen_dwsa, _ = self.geo[ke[j]].angular_coordinates()
-
-                    yc, xc = region_properties[0].centroid
+                    yc, xc = rp[0].centroid
 
                     # To be changed for other type of roll-off processing
                     _, data = self.values_around_centroid(im_dws[:, :, j], (yc, xc), npixel)  # Using 15 pixels
@@ -531,9 +555,9 @@ class RolloffFunctions(ProcessImage):
 
     def initial_process_i360(self, path):
         """
-
-        :param path:
-        :return:
+        Initial processing of image including dark removal and downsampling.
+        :param path: absolute path to image (str)
+        :return: tuple (image downsampled, metadata)
         """
         # Reading data
         im_op, metadata = self.readDNG_insta360_np(path, self.which_lens)
@@ -546,6 +570,22 @@ class RolloffFunctions(ProcessImage):
         im_dws = self.dwnsampling(im_op, "RGGB", ave=True)
 
         return im_dws, metadata
+
+    def filtering_region_properties(self, rp, azimuth_plane="0"):
+        """
+        Further processing to remove unwanted regions detected in figure according to the azimuthal plane.
+        :param rp: list of region_properties objects
+        :param azimuth_plane: azimuthal plane 0 or 90 (str)
+        :return: list of region_properties objects filtered
+        """
+        if azimuth_plane == "0":
+            rpf = [r for r in rp if (self.ims[0] // 2 + 50) > r.centroid[0] > (self.ims[0] // 2 - 50)]
+        elif azimuth_plane == "90":
+            rpf = [r for r in rp if (self.ims[1] // 2 + 200) > r.centroid[1] > (self.ims[1] // 2 - 200)]
+        else:
+            raise ValueError("Invalid value for azimuthal_plane")
+
+        return rpf
 
     @staticmethod
     def values_around_centroid(image, centroid, radius):

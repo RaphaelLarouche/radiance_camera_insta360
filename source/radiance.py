@@ -48,8 +48,10 @@ class ImageRadiancei360(ProcessImage):
         self.ifactor_close = self.open_calibrations("lens-close/20200911/immersion", calibration="immersion")
 
         # Roll-off
-        self.rolloff_close = self.open_rolloff_calibration("lens-close/20190501/fit-coefficients")
-        self.rolloff_far = self.open_rolloff_calibration("lens-close/20190501/fit-coefficients")  # !!!!!
+        # self.rolloff_close = self.open_rolloff_calibration("lens-close/20190501/fit-coefficients")
+        # self.rolloff_far = self.open_rolloff_calibration("lens-close/20190501/fit-coefficients")  # !!!!!
+        self.rolloff_close = self.open_rolloff_calibration()
+        self.rolloff_far = self.open_rolloff_calibration()
 
         # Attributes
         self.im_original, self.metadata = self._readDNG_np(image_path)  # From ProcessImage class
@@ -90,16 +92,18 @@ class ImageRadiancei360(ProcessImage):
 
         return geometric_close, geometric_far
 
-    def open_rolloff_calibration(self, tag):
+    def open_rolloff_calibration(self):
         """
         Open roll-off calibration stored inside hdf5 file format.
         :return:
         """
 
         if self.medium.lower() == "air":
-            path_tf = self.base_path + "/calibrations/roll-off/calibrationfiles/rolloff_w.h5"
+            path_tf = self.base_path + "/calibrations/roll-off/calibrationfiles/rolloff_a.h5"
+            tag = "lens-close/20170102/fit-coefficients"
         elif self.medium.lower() == "water":
             path_tf = self.base_path + "/calibrations/roll-off/calibrationfiles/rolloff_w.h5"
+            tag = "lens-close/20190501/fit-coefficients"
         else:
             raise ValueError("Invalid name for medium. Should be 'air' or 'water'.")
 

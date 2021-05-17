@@ -55,6 +55,12 @@ if __name__ == "__main__":
         if answer.lower() in ["c", "f"]:
             break
 
+    # Medium to analyze
+    while True:
+        answer_m = input("Which medium? (a-air/w-water): ")
+        if answer_m.lower() in ["a", "w"]:
+            break
+
     # Instance of figurefunctions
     ff = FigureFunctions()
 
@@ -62,36 +68,26 @@ if __name__ == "__main__":
     process = ProcessImage()
 
     # Open files
-    generalpath = "/Volumes/MYBOOK/data-i360/calibrations/relative-illumination/"
-    pathgeo = os.path.dirname(os.path.dirname(__file__))
+    mdict = {"a": "air", "w": "water"}
+    wlens = {"c": "close", "f": "far"}
+    medium_name = mdict[answer_m]
+    generalpath = "/Volumes/MYBOOK/data-i360/calibrations/relative-illumination/" + medium_name
 
     if answer.lower() == "c":
 
         # Roll-off images
-        path_00 = generalpath + "lensclose/00"
-        path_90 = generalpath + "lensclose/90"
+        path_00 = generalpath + "/lensclose/00"
+        path_90 = generalpath + "/lensclose/90"
 
-        # Geometric calibration
-        geocalib = deepdish.io.load(pathgeo + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5", "/lens-close/20200730_112353/")
-        FishParams = geocalib["fp"]
+        rcal = RolloffFunctions("close", medium_name, 1E3, 9E3)
 
-        # AIR roll-off
-        rcal = RolloffFunctions(geocalib["fp"], geocalib["ierror"], "close")
     else:
 
         # Roll-off images
         path_00 = generalpath + "/lensfar/00"
         path_90 = generalpath + "/lensfar/90"
 
-        # Geometric calibration
-        geocalib = deepdish.io.load(pathgeo + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5", "/lens-far/20200730_143716/")
-        FishParams = geocalib["fp"]
-
-        # Air roll-off
-        rcal = RolloffFunctions(geocalib["fp"], geocalib["ierror"], "far")
-
-    # Dictionary to open DNG files using readDNG_insta360
-    wlens = {"c": "close", "f": "far"}
+        rcal = RolloffFunctions("far", medium_name, 1E3, 9E3)
 
     # Loop
     imlist_00 = rcal.imageslist(path_00)
@@ -135,7 +131,6 @@ if __name__ == "__main__":
     fig3, ax3 = plt.subplots(3, 1, sharex=True, figsize=(6.4, 7))
 
     # Fig 9
-    #fig4, ax4 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7, height_ratio=0.53))
     fig4, ax4 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7))
 
     # Fitting
@@ -230,7 +225,6 @@ if __name__ == "__main__":
     ax4.set_ylim((0.2, 1.0338603520703975))
     ax4.set_xlabel(r"$\theta$ [˚]")
     ax4.set_ylabel(r"$R(\theta)$")
-    #ax4.legend(loc=3, fontsize=5)
 
     fig3.tight_layout()
     fig4.tight_layout()
@@ -241,7 +235,7 @@ if __name__ == "__main__":
 
     if save_answer == "y":
 
-        pathname = "calibrationfiles/rolloff_w.h5"
+        pathname = "calibrationfiles/rolloff_{0}.h5".format(answer_m)
         timestr = time.strftime("%Y%m%d", time.localtime(os.stat(imlist_00[0])[-2]))
 
         if answer.lower() == "c":
@@ -250,6 +244,6 @@ if __name__ == "__main__":
             process.create_hdf5_dataset(pathname, "lens-far/" + timestr, "fit-coefficients", fitresults)
 
         # Saving figure
-        fig4.savefig("figures/roll-off-{}.pdf".format(wlens[answer.lower()]), format="pdf", dpi=600)
+        fig4.savefig("figures/roll-off-{0}-{1}.pdf".format(wlens[answer.lower()], answer_m), format="pdf", dpi=600)
 
     plt.show()
