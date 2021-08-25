@@ -7,6 +7,7 @@ diminution of the optic etendue.
 # Module importation
 import os
 import time
+import pandas
 import deepdish
 import numpy as np
 import matplotlib.pyplot as plt

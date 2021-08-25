@@ -12,7 +12,7 @@ import matplotlib.cm
 import matplotlib.pyplot as plt
 
 # Other modules
-from source.processing import  ProcessImage, FigureFunctions
+from source.processing import ProcessImage, FigureFunctions
 from source.radiance import ImageRadiancei360
 
 

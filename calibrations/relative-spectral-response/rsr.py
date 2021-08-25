@@ -331,15 +331,15 @@ if __name__ == "__main__":
 
     lstyle = ["-", "-.", ":"]
     m = ["o", "s", "d"]
-    col = ["#d62728", "#2ca02c", "#084594"]
+    col = ['#d62728', '#2ca02c', '#1f77b4']
     lab = ["red band", "green band", "blue band"]
 
     for i in range(rsr.shape[1]):
 
-        ax2[0].plot(wl, rsr[:, i], marker=m[i], linestyle=lstyle[i], color="k", label=lab[i], markeredgecolor="k", markerfacecolor="none")
+        ax2[0].plot(wl, rsr[:, i], marker=m[i], linestyle=lstyle[i], color=col[i], label=lab[i], markeredgecolor=col[i], markerfacecolor="none")
         ax2[0].fill_between(wl, rsr[:, i]-rsr_unc[:, i], rsr[:, i]+rsr_unc[:, i], color="lightgrey", alpha=0.7)
 
-        axrsr.plot(wl, rsr[:, i], marker=m[i], markersize=3, linestyle=lstyle[i], color="k", label=lab[i], markeredgecolor="k", markerfacecolor="none")
+        axrsr.plot(wl, rsr[:, i], marker=m[i], markersize=3, linestyle=lstyle[i], color=col[i], label=lab[i], markeredgecolor=col[i], markerfacecolor="none")
         axrsr.fill_between(wl, rsr[:, i] - rsr_unc[:, i], rsr[:, i] + rsr_unc[:, i], color="lightgrey", alpha=0.7)
 
     ax2[0].set_xticks(range(375, 725, 25))
