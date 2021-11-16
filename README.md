@@ -52,13 +52,20 @@ virtual environment using:
 $ conda env create -f environment.yml
 ``` 
 
-To use with [Virtualenv](https://virtualenv.pypa.io/en/latest/):
+To use with [Virtualenv](https://virtualenv.pypa.io/en/latest/), for Mac OS users:
 
 ```
 $ python3 -m venv env
 $ source env/bin/activate
 $ python3 -m pip3 install -r requirements.txt
 ``` 
+For Windows users:
+
+~~~~
+$ python3 -m venv env
+$ env/bin/activate
+$ python3 -m pip3 install -r requirement.txt
+~~~~
 
 ## Examples
 To analyze new data taken with the camera, it is recommended to create a new directory in the folder `field`. To compute 
