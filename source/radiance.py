@@ -74,12 +74,20 @@ class ImageRadiancei360(ProcessImage):
         p = self.base_path + "/calibrations/geometric-calibration/calibrationfiles/"
 
         if self.medium.lower() == "air":
-            geocalib_close = deepdish.io.load(p + "geometric-calibration-air.h5", "/lens-close/20190104_192404/")
-            geocalib_far = deepdish.io.load(p + "geometric-calibration-air.h5", "/lens-far/20190104_214037/")
+            # geocalib_close = deepdish.io.load(p + "geometric-calibration-air.h5", "/lens-close/20190104_192404/")
+            # geocalib_far = deepdish.io.load(p + "geometric-calibration-air.h5", "/lens-far/20190104_214037/")
+
+            geo_air = h5py.File(p + "geometric-calibration-air.h5", "r")
+            geocalib_close = geo_air["/lens-close/20190104_192404/"]
+            geocalib_far = geo_air["/lens-far/20190104_214037/"]
 
         elif self.medium.lower() == "water":
-            geocalib_close = deepdish.io.load(p + "geometric-calibration-water.h5", "/lens-close/20200730_112353/")
-            geocalib_far = deepdish.io.load(p + "geometric-calibration-water.h5", "/lens-far/20200730_143716/")
+            #geocalib_close = deepdish.io.load(p + "geometric-calibration-water.h5", "/lens-close/20200730_112353/")
+            #geocalib_far = deepdish.io.load(p + "geometric-calibration-water.h5", "/lens-far/20200730_143716/")
+
+            geo_water = h5py.File(p + "geometric-calibration-water.h5")
+            geocalib_close = geo_water["/lens-close/20200730_112353/"]
+            geocalib_far = geo_water["/lens-far/20200730_143716/"]
         else:
             raise ValueError("Invalid name for medium. Should be 'air' or 'water'.")
 

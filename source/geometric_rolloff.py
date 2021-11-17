@@ -5,9 +5,10 @@ Classes for geometric calibration methods of insta360 ONE.
 
 # Module importation
 import os
+import h5py
 import deepdish
 import numpy as np
-import matlab.engine
+# import matlab.engine
 import matplotlib.cm
 import scipy.io as spio
 import matplotlib.pyplot as plt
@@ -18,11 +19,47 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from source.processing import ProcessImage
 
 
-# Classes
+# Function and classes
+
+def see_everything_inside_h5(h5object, sep="\t"):
+    """
+    Print everything found inside hdf5 files.
+
+    :param h5object: h5 object
+    :param sep: separator to use
+    :return: nothing
+    """
+    if type(h5object) in [h5py._hl.group.Group, h5py._hl.files.File]:  # High level
+        for key in h5object.keys():
+            print(sep, '-', key, ':', h5object[key])
+            see_everything_inside_h5(h5object[key], sep=sep + '\t')
+    elif type(h5object) == h5py._hl.dataset.Dataset:  # if dataset
+        for key in h5object.attrs.keys():
+            print(sep + '\t', '-', key, ':', h5object.attrs[key])
+        print(sep + '\t', '-', h5object[:])
+
+
+def recursive_h5_to_dict(h5object):
+    """
+
+    :param h5object:
+    :param dic:
+    :return:
+    """
+    dic = {}
+    if type(h5object) in [h5py._hl.group.Group, h5py._hl.files.File]:  # High level
+        for k in h5object.keys():
+            dic[k] = recursive_h5_to_dict(h5object[k])
+    elif type(h5object) == h5py._hl.dataset.Dataset:  # if dataset
+        return np.squeeze(np.array(h5object[:]))
+    return dic
+
+
 class OpenMatlabFiles:
     """
 
     """
+
     def loadmat(self, filename):
         """
         Loading fisheyeparams matlab.
@@ -35,28 +72,28 @@ class OpenMatlabFiles:
         data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
         return self._check_keys(data)
 
-    def _check_keys(self, dict):
+    def _check_keys(self, dictio):
         """
         checks if entries in dictionary are mat-objects. If yes
         todict is called to change them to nested dictionaries
         """
-        for key in dict:
-            if isinstance(dict[key], spio.matlab.mio5_params.mat_struct):
-                dict[key] = self._todict(dict[key])
-        return dict
+        for key in dictio:
+            if isinstance(dictio[key], spio.matlab.mio5_params.mat_struct):
+                dictio[key] = self._todict(dictio[key])
+        return dictio
 
     def _todict(self, matobj):
         """
         A recursive function which constructs from matobjects nested dictionaries
         """
-        dict = {}
+        dictio = {}
         for strg in matobj._fieldnames:
             elem = matobj.__dict__[strg]
             if isinstance(elem, spio.matlab.mio5_params.mat_struct):
-                dict[strg] = self._todict(elem)
+                dictio[strg] = self._todict(elem)
             else:
-                dict[strg] = elem
-        return dict
+                dictio[strg] = elem
+        return dictio
 
 
 class MatlabGeometric(OpenMatlabFiles):
@@ -244,7 +281,7 @@ class MatlabGeometric(OpenMatlabFiles):
         z_reduced = np.interp(r_reduced, r, zen)
 
         # Plots
-        fig1 = plt.figure(figsize=(12,  3.57))
+        fig1 = plt.figure(figsize=(12, 3.57))
         ax1 = [fig1.add_subplot(1, 3, 2), fig1.add_subplot(1, 3, 3)]
         ax1.append(fig1.add_subplot(1, 3, 1, projection="3d"))
 
@@ -255,7 +292,8 @@ class MatlabGeometric(OpenMatlabFiles):
 
         # Axe 2
         text_med = "Residuals median: {0:.3f}˚".format(np.median(residuals))
-        ax1[1].scatter(rmap.ravel(), residuals.ravel(), marker="o", s=8, edgecolor="black", facecolor="none", label="corners")
+        ax1[1].scatter(rmap.ravel(), residuals.ravel(), marker="o", s=8, edgecolor="black", facecolor="none",
+                       label="corners")
         ax1[1].set_yscale("log")
 
         ax1[1].set_xlabel(r"Radial distance [px]")
@@ -319,7 +357,8 @@ class MatlabGeometric(OpenMatlabFiles):
         ax1.legend(loc="best")
 
         # Axe 2
-        ax2.scatter(rmap.ravel(), residuals.ravel(), marker=mark, s=8, edgecolor=cl, facecolor="none", label="{0} acquisitions, residuals median: {1:.3f}˚".format(Nim, np.median(residuals)))
+        ax2.scatter(rmap.ravel(), residuals.ravel(), marker=mark, s=8, edgecolor=cl, facecolor="none",
+                    label="{0} acquisitions, residuals median: {1:.3f}˚".format(Nim, np.median(residuals)))
         ax2.set_yscale("log")
 
         ax2.set_xlabel(r"Radial distance $r$ [px]")
@@ -348,7 +387,9 @@ class MatlabGeometric(OpenMatlabFiles):
             C = WP.dot(R[:, :, i]) + T[i, :]
             C = C.reshape(A.shape)
             vertex = np.array([C[0, 0, :], C[0, -1, :], C[-1, -1, :], C[-1, 0, :]])
-            ax.add_collection3d(Poly3DCollection([list(zip(vertex[:, 0], vertex[:, 2], vertex[:, 1]))], facecolors=cm[int(ch/2), :], edgecolors="k", alpha=0.5))
+            ax.add_collection3d(
+                Poly3DCollection([list(zip(vertex[:, 0], vertex[:, 2], vertex[:, 1]))], facecolors=cm[int(ch / 2), :],
+                                 edgecolors="k", alpha=0.5))
 
         ax.scatter(0, 0, 0, marker="o", c="k")
 
@@ -430,10 +471,14 @@ class MatlabGeometricMengine(MatlabGeometric):
     """
 
     """
-    def __init__(self, fisheye_parameters, fisheye_intrinsic_error):
+
+    def __init__(self, fisheye_parameters_h5, fisheye_intrinsic_error_h5):
         # Intrinsics
-        self.fisheye_params = self.recursive_matlab2array(fisheye_parameters)
-        self.intrinsic_errors = self.recursive_matlab2array(fisheye_intrinsic_error)
+        #self.fisheye_params = self.recursive_matlab2array(fisheye_parameters)
+        #self.intrinsic_errors = self.recursive_matlab2array(fisheye_intrinsic_error)
+
+        self.fisheye_params = recursive_h5_to_dict(fisheye_parameters_h5)
+        self.intrinsic_errors = recursive_h5_to_dict(fisheye_intrinsic_error_h5)
 
         # Intrinsics wanted variables
         self.intrinsics = self.fisheye_params["Intrinsics"]
@@ -460,6 +505,7 @@ class RolloffFunctions(ProcessImage):
     """
     Functions for relative-illumination (roll-off) calibration.
     """
+
     def __init__(self, lens, medium, valmin=1E3, valmax=1E4):
 
         # Path to root
@@ -541,7 +587,6 @@ class RolloffFunctions(ProcessImage):
                 ke = {0: "red", 1: "green", 2: "blue"}
 
                 for j, k in enumerate(self.geo.keys()):
-
                     _, zen_dwsa, _ = self.geo[ke[j]].angular_coordinates()
                     yc, xc = rp[0].centroid
 
@@ -658,5 +703,4 @@ class RolloffFunctions(ProcessImage):
 
 
 if __name__ == "__main__":
-
     plt.show()

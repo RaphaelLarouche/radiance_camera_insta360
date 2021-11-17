@@ -5,7 +5,7 @@ Geometric calibration using Scaramuzza et al. (2006) algorithm.
 
 # Module importation
 import os
-import matlab.engine
+import matlab.engine  # Matlab engine needed for geometric calibration see: https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html
 import time
 import string
 import timeit

@@ -22,14 +22,13 @@ if __name__ == "__main__":
     process_im = ProcessImage()
 
     # Path to dng files
-    ips_path = "/Volumes/MYBOOK/Backup_dossier_OneDrive_UL/Insta360/Insta360_Data_Amundsen/Before_bug/"
-    ips_imname = glob.glob(ips_path + "*.dng")
+    ips_path = process_im.folder_choice()  # Backup_dossier_OneDrive_UL/Insta360/Insta360_Data_Amundsen/Before_bug/"
+    ips_imname = glob.glob(ips_path + "/*.dng")
     ips_imname.sort()
 
     # # Mask
     wanted_images = ["006", "007", "008", "009", "010", "011", "013", "014", "015", "017", "018", "019", "020",
                      "021", "022"]
-
     #wanted_images = ["006", "007", "008", "009", "010", "011", "013", "014"]
     m = [os.path.splitext(os.path.basename(i).split("_")[3])[0] in wanted_images for i in ips_imname]
     depths = np.array([0.1 + i*0.1 for i in range(len(wanted_images))])
@@ -96,17 +95,17 @@ if __name__ == "__main__":
 
     # Figure 2
     fig2, ax2 = plt.subplots(1, 3, sharey=True)
-    ax2[0].plot(Ed["r"], depths)
-    ax2[0].plot(Eu["r"], depths)
-    ax2[0].plot(Eo["r"], depths)
+    ax2[0].plot(Ed["r"], depths, color="r")
+    ax2[0].plot(Eu["r"], depths, color="r")
+    ax2[0].plot(Eo["r"], depths, color="r")
 
-    ax2[1].plot(Ed["g"], depths)
-    ax2[1].plot(Eu["g"], depths)
-    ax2[1].plot(Eo["g"], depths)
+    ax2[1].plot(Ed["g"], depths, color="g")
+    ax2[1].plot(Eu["g"], depths, color="g")
+    ax2[1].plot(Eo["g"], depths, color="g")
 
-    ax2[2].plot(Ed["b"], depths)
-    ax2[2].plot(Eu["b"], depths)
-    ax2[2].plot(Eo["b"], depths)
+    ax2[2].plot(Ed["b"], depths, color="b")
+    ax2[2].plot(Eu["b"], depths, color="b")
+    ax2[2].plot(Eo["b"], depths, color="b")
 
     ax2[0].invert_yaxis()
 

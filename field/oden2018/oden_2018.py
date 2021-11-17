@@ -43,7 +43,7 @@ def save_radiance_image_hdf5(path_name, data_name, dat):
     """
 
     datapath = data_name
-    with h5py.File(path_name) as hf:
+    with h5py.File(path_name, "a") as hf:
         if datapath in hf:
             d = hf[datapath]  # load the data
             d[...] = dat
@@ -60,11 +60,11 @@ if __name__ == "__main__":
     ff = FigureFunctions()
 
     # Oden images
-    oden_path = "/Volumes/MYBOOK/data-i360/field/oden-08312018/"
-    oden_impath = glob.glob(oden_path + "*.dng")
+    oden_path = process_im.folder_choice()  # Choose data: "/Volumes/MYBOOK/data-i360/field/oden-08312018/"
+    oden_impath = glob.glob(oden_path + "/*.dng")
     oden_impath.sort()
 
-    im_labels = imagelabel(oden_path + "ReadMe_python.txt")
+    im_labels = imagelabel(oden_path + "/ReadMe_python.txt")
     wanted_depth = ["zero minus",
                     "20 cm (in water)",
                     "40 cm", "60 cm", "80 cm", "100 cm", "120 cm", "140 cm", "160 cm", "180 cm", "200 cm"]
@@ -73,7 +73,10 @@ if __name__ == "__main__":
     oden_impath_filtered[-1] = oden_impath[-9]
 
     # Data saving parameters
-    path_save_rad = "data/oden-08312018.h5"
+    if not os.path.isdir(os.path.dirname(__file__) + "/data"):
+        os.makedirs(os.path.dirname(__file__) + "/data")
+
+    path_save_rad = os.path.dirname(__file__) + "/data/oden-08312018.h5"
     answ = process_im.save_results(text="Do you want to save the radiance angular distributions?")
     cond_save = answ == "y"
 

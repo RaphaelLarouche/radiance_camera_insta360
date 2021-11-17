@@ -62,7 +62,7 @@ if __name__ == "__main__":
     ff = proccessing.FigureFunctions()
 
     # General path to all data
-    path = process.folder_choice("/Volumes/MYBOOK/data-i360-tests/")
+    path = process.folder_choice()
     path_i360 = os.path.dirname(os.path.dirname(__file__))
 
     # Choice of camera
@@ -78,7 +78,9 @@ if __name__ == "__main__":
         imlist = process.imageslist(impath)
         imlistdark = process.imageslist_dark(impath, prefix="AMB")
 
-        geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5", "/lens-close/20190104_192404/")
+        #geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5", "/lens-close/20190104_192404/")
+        geocalib = h5py.File(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5")
+        geocalib = geocalib["/lens-close/20190104_192404/"]
 
         srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200610.h5", "r")
         srdata = srdata["lens-close"]
@@ -90,7 +92,9 @@ if __name__ == "__main__":
         imlist = process.imageslist(impath)
         imlistdark = process.imageslist_dark(impath, prefix="AMB")
 
-        geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5", "/lens-far/20190104_214037/")
+        #geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5", "/lens-far/20190104_214037/")
+        geocalib = h5py.File(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5")
+        geocalib = geocalib["/lens-far/20190104_214037/"]
 
         srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200710.h5", "r")
         srdata = srdata["lens-far"]

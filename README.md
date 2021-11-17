@@ -46,7 +46,7 @@ model.
 - Installation of matlab engine for python: [Install MATLAB Engine API for Python](https://www.mathworks.com/help/matlab/matlab_external/install-the-matlab-engine-for-python.html)
 
 ## Packages installation
-The environment requirements are specified in `environment.yml` and `requirements.txt`. For Anaconda users, recreate the 
+This repository works well for **python 3.8** and below. The environment requirements are specified in `environment.yml` and `requirements.txt`. For Anaconda users, recreate the 
 virtual environment using:
 ```
 $ conda env create -f environment.yml
@@ -62,9 +62,9 @@ $ python3 -m pip3 install -r requirements.txt
 For Windows users:
 
 ~~~~
-$ python3 -m venv env
-$ env/bin/activate
-$ python3 -m pip3 install -r requirement.txt
+$ python -m venv env
+$ env\Scripts\activate
+$ python -m pip install -r requirements.txt
 ~~~~
 
 ## Examples

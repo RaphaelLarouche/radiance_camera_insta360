@@ -15,6 +15,7 @@ from scipy.optimize import curve_fit
 from source.processing import ProcessImage, FigureFunctions
 import source.radiance as r
 
+
 # Function and classes
 def sigmoid_5params(x, a, b, c, d, g):
     """
@@ -23,6 +24,7 @@ def sigmoid_5params(x, a, b, c, d, g):
     """
 
     return d + ((a - d) / (1 + (x / c) ** b) ** g)
+
 
 def third_order_poly(x, a, b, c, d):
     """
@@ -49,6 +51,7 @@ def general_gaussian(x, a, b, c):
     """""
     return np.exp(-(x * a - b) ** 2) + c
 
+
 def interpolation(zenith_meshgrid, angular_radiance_distribution):
     """
     Interpolation of missing angles (due reduced FOV due to water refractive index) using a gaussian function.
@@ -73,6 +76,9 @@ def interpolation(zenith_meshgrid, angular_radiance_distribution):
         ard[:, :, b] = ard_c
 
     return ard
+
+# TODO: normalization by surface data ??
+
 
 if __name__ == "__main__":
 
@@ -128,12 +134,14 @@ if __name__ == "__main__":
 
     # Gershun law estimation of absorption coefficient
     absorption = np.zeros(len(wanted_depth), dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4')]))
-    absorption["r"]= r.attenuation_coefficient((Ed["r"] - Eu["r"]), depths) * ((Ed["r"] - Eu["r"]) / Eo["r"])
+    absorption["r"] = r.attenuation_coefficient((Ed["r"] - Eu["r"]), depths) * ((Ed["r"] - Eu["r"]) / Eo["r"])
     absorption["g"] = r.attenuation_coefficient((Ed["g"] - Eu["g"]), depths) * ((Ed["g"] - Eu["g"]) / Eo["g"])
     absorption["b"] = r.attenuation_coefficient((Ed["b"] - Eu["b"]), depths) * ((Ed["b"] - Eu["b"]) / Eo["b"])
 
     # Transmittance
-    T = np.array(list(Ed[-3])) / np.array(list(Ed[1]))  # between 20 cm and 160 cm
+    T = np.array(list(Ed[-3])) / np.array(list(Ed[1]))  # between 20 cm and 160 cm - 180 cm uncertain if the stick was properly lowered
+
+    print(T)
 
     # Figure
     fs = ff.set_size(subplots=(2, 2))
