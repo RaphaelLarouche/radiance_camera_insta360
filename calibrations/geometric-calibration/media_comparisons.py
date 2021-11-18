@@ -6,7 +6,7 @@ Comparison between geometric projection curves for air and water.
 # Module importation
 import os
 import string
-import deepdish
+import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     ax2.append(fig2.add_subplot(122, projection="3d"))
 
     # Open Water calibration
-    geo_water = deepdish.io.load(path_calib + "/calibrationfiles/geometric-calibration-water.h5")
+    geo_water = h5py.File(path_calib + "/calibrationfiles/geometric-calibration-water.h5")
     geo_water_close = geo_water["lens-close"]["20200730_112353"]
     geo_water_far = geo_water["lens-far"]["20200730_143716"]
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
     geometric_water_far = format_geometric_calibration(geo_water_far)
 
     # Open Air calibration
-    geo_air = deepdish.io.load(path_calib + "/calibrationfiles/geometric-calibration-air.h5")
+    geo_air = h5py.File(path_calib + "/calibrationfiles/geometric-calibration-air.h5")
     geo_air_close = geo_air["lens-close"]["20190104_192404"]
     geo_air_far = geo_air["lens-far"]["20190104_214037"]
 

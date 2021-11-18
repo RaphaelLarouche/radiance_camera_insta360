@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 
 # Other modules
-from source.processing import ProcessImage, FigureFunctions
 import source.radiance as r
+from source.processing import ProcessImage, FigureFunctions
 
 
 # Function and classes
@@ -52,7 +52,7 @@ def general_gaussian(x, a, b, c):
     return np.exp(-(x * a - b) ** 2) + c
 
 
-def interpolation(zenith_meshgrid, angular_radiance_distribution):
+def extrapolation(zenith_meshgrid, angular_radiance_distribution):
     """
     Interpolation of missing angles (due reduced FOV due to water refractive index) using a gaussian function.
 
@@ -61,23 +61,36 @@ def interpolation(zenith_meshgrid, angular_radiance_distribution):
     :return: interpolated radiance angular distribution (array)
     """
 
-    ard = angular_radiance_distribution.copy()
-    rad_zen = r.azimuthal_average(ard)
+    ard = angular_radiance_distribution.copy()  # Angular radiance distribution
+    rad_zen = r.azimuthal_average(ard)  # Perform azimuthal average
 
     for b in range(rad_zen.shape[1]):
+
+        # Condition for non-nan data
         co = ~np.isnan(rad_zen[:, b])
 
+        # Normalization
         norm_val = np.mean(rad_zen[:, b][co][:5])  # 5 first values
         rad_zen_norm = rad_zen[:, b][co] / norm_val
+
+        # Fit ()
         popt, pcov = curve_fit(general_gaussian, zenith_meshgrid[:, 0][co] * np.pi / 180, rad_zen_norm, p0=[-0.7, 0, 0.1])
 
         ard_c = ard[:, :, b].copy()
-        ard_c[ard_c==0] = general_gaussian(zenith_meshgrid[ard_c==0] * np.pi / 180, *popt) * norm_val
+
+        ard_c[ard_c == 0] = general_gaussian(zenith_meshgrid[ard_c == 0] * np.pi / 180, *popt) * norm_val
         ard[:, :, b] = ard_c
 
     return ard
 
+
+def extrapolation_legendre_polynomials():
+
+    return
+
 # TODO: normalization by surface data ??
+# TODO: OPEN radiometer data
+# TODO: Try legendre fit
 
 
 if __name__ == "__main__":
@@ -88,8 +101,12 @@ if __name__ == "__main__":
     # Object ProcessImage
     process_im = ProcessImage()
 
+    # Opening radiometer data
+
     # Oden2018 image radiance data
     zen, azi, rad = process_im.open_radiance_data(path="data/oden-08312018.h5")
+
+    # rad - radiance angular distribution
 
     wanted_depth = ["zero minus", "20 cm (in water)", "40 cm", "60 cm", "80 cm", "100 cm", "120 cm", "140 cm", "160 cm",
                     "180 cm", "200 cm"]
@@ -110,7 +127,8 @@ if __name__ == "__main__":
     # Loop
     for i, k in enumerate(wanted_depth):
 
-        rad_interpo = interpolation(zen , rad[k])
+        # Extrapolation
+        rad_interpo = extrapolation(zen, rad[k])
 
         # Down-welling irradiance
         Ed[i] = tuple(r.irradiance(zen, azi, rad_interpo, 0, 90, planar=True))
@@ -125,6 +143,7 @@ if __name__ == "__main__":
 
         # Azimuthal average and plot
         cl = next(cmit)
+        
         #azimuthal_average = r.azimuthal_average(rad[k])
         azimuthal_average = r.azimuthal_average(rad_interpo)
 
@@ -134,6 +153,7 @@ if __name__ == "__main__":
 
     # Gershun law estimation of absorption coefficient
     absorption = np.zeros(len(wanted_depth), dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4')]))
+
     absorption["r"] = r.attenuation_coefficient((Ed["r"] - Eu["r"]), depths) * ((Ed["r"] - Eu["r"]) / Eo["r"])
     absorption["g"] = r.attenuation_coefficient((Ed["g"] - Eu["g"]), depths) * ((Ed["g"] - Eu["g"]) / Eo["g"])
     absorption["b"] = r.attenuation_coefficient((Ed["b"] - Eu["b"]), depths) * ((Ed["b"] - Eu["b"]) / Eo["b"])
@@ -146,10 +166,10 @@ if __name__ == "__main__":
     # Figure
     fs = ff.set_size(subplots=(2, 2))
     fig1, ax1 = plt.subplots(1, 3, sharey=True, sharex=True, figsize=ff.set_size(subplots=(1, 3)))
-    #fig2, ax2 = plt.subplots(2, 2, sharey=True, figsize=(fs[0], fs[1] * 1.5))
+
     fig2, ax2 = plt.subplots(1, 3, sharey=True, figsize=ff.set_size(subplots=(1, 3)))
     ax2 = ax2.ravel()
-    #fig3, ax3 = plt.subplots(1, 2, sharey=True, figsize=ff.set_size(subplots=(1, 2)))
+
     fig3, ax3 = plt.subplots(1, 1, sharey=True, figsize=ff.set_size())
     fig4, ax4 = plt.subplots(1, 1, sharey=True, figsize=ff.set_size())
 

@@ -10,7 +10,7 @@ import os
 import glob
 import h5py
 import string
-import deepdish
+from numba import jit
 import numpy as np
 from scipy import integrate
 import scipy.interpolate
@@ -74,17 +74,12 @@ class ImageRadiancei360(ProcessImage):
         p = self.base_path + "/calibrations/geometric-calibration/calibrationfiles/"
 
         if self.medium.lower() == "air":
-            # geocalib_close = deepdish.io.load(p + "geometric-calibration-air.h5", "/lens-close/20190104_192404/")
-            # geocalib_far = deepdish.io.load(p + "geometric-calibration-air.h5", "/lens-far/20190104_214037/")
 
             geo_air = h5py.File(p + "geometric-calibration-air.h5", "r")
             geocalib_close = geo_air["/lens-close/20190104_192404/"]
             geocalib_far = geo_air["/lens-far/20190104_214037/"]
 
         elif self.medium.lower() == "water":
-            #geocalib_close = deepdish.io.load(p + "geometric-calibration-water.h5", "/lens-close/20200730_112353/")
-            #geocalib_far = deepdish.io.load(p + "geometric-calibration-water.h5", "/lens-far/20200730_143716/")
-
             geo_water = h5py.File(p + "geometric-calibration-water.h5")
             geocalib_close = geo_water["/lens-close/20200730_112353/"]
             geocalib_far = geo_water["/lens-far/20200730_143716/"]
@@ -199,8 +194,13 @@ class ImageRadiancei360(ProcessImage):
 
                 de = dewarp[:, :, b].copy()
 
-                de[cond_c] = self.dewarpband(im_c[:, :, b], theta_c[cond_c], phi_c[cond_c], self.rad_c[:, :, b], self.zen_c[:, :, b], self.geometric_close[k])
-                de[cond_f] = self.dewarpband(im_f[:, :, b], theta_f[cond_f], phi_f[cond_f], self.rad_f[:, :, b], self.zen_f[:, :, b], self.geometric_far[k])
+                # Dawarping camera 1 (c)
+                de[cond_c] = self.dewarpband(im_c[:, :, b], theta_c[cond_c], phi_c[cond_c],
+                                             self.rad_c[:, :, b], self.zen_c[:, :, b], self.geometric_close[k])
+
+                # Dewarping camera 2 (c)
+                de[cond_f] = self.dewarpband(im_f[:, :, b], theta_f[cond_f], phi_f[cond_f],
+                                             self.rad_f[:, :, b], self.zen_f[:, :, b], self.geometric_far[k])
 
                 dewarp[:, :, b] = de
 
@@ -363,7 +363,9 @@ class ImageRadiancei360(ProcessImage):
 
         return image[ycam, xcam]
 
-    def dewarpband(self, image, theta, phi, rho, zen, geo):
+    @staticmethod
+    #@jit(nopython=True)
+    def dewarpband(image, theta, phi, rho, zen, geo):
         """
         Basic dewap process using geometric calibration specific to each spectral band. X and Y position on image
         matrix is found by inverse mapping of the zenithal and azimuthal world coordinates.
@@ -526,7 +528,7 @@ class ImageRadiancei360(ProcessImage):
 
     def interpolation_gaussian_function(self):
         """
-        Extrapolation of missing angles (over 4pi sr) using a gaussian fit on the data. See function
+        Extrapolation (!) of missing angles (over 4pi sr) using a gaussian fit on the data. See function
         self.general_gaussian().
 
         :return:
@@ -555,6 +557,10 @@ class ImageRadiancei360(ProcessImage):
             return self.mapped_radiance_4pi
         else:
             print("No radiance map in regular angular grid found. Method map_radiance() must be done. ")
+
+    def legendre_polynomials_extrapolation(self):
+
+        return
 
     @staticmethod
     def general_gaussian(x, a, b, c):

@@ -246,8 +246,20 @@ if __name__ == "__main__":
     fig2.tight_layout()
 
     # Saving results
+    correspond_optic = {"c": "close", "f": "far"}
     save_answer = process.save_results()
 
+    # Save figure
+    fig.savefig("figures/output_sphere_{}.pdf".format(correspond_optic[answer.lower()]), format="pdf", dpi=600,
+                bbox_inches='tight')
+    fig.savefig("figures/output_sphere_{}.png".format(correspond_optic[answer.lower()]), format="png", dpi=600,
+                bbox_inches='tight')
+    fig2.savefig("figures/spectral_radiance_{}.pdf".format(correspond_optic[answer.lower()]), format="pdf", dpi=600,
+                 bbox_inches='tight')
+    fig2.savefig("figures/spectral_radiance_{}.png".format(correspond_optic[answer.lower()]), format="png", dpi=600,
+                 bbox_inches='tight')
+
+    # Saving calibration
     if save_answer == "y":
 
         filename = "absolute_radiance" + ".h5"
@@ -261,8 +273,5 @@ if __name__ == "__main__":
             process.create_hdf5_dataset(pathname, "lens-close/" + timestr, "cal-coefficients", coeff)
         else:
             process.create_hdf5_dataset(pathname, "lens-far/" + timestr, "cal-coefficients", coeff)
-
-        fig.savefig("figures/output_sphere_{}.pdf".format(correspond_optic[answer.lower()]), format="pdf", dpi=600, bbox_inches='tight')
-        fig2.savefig("figures/spectral_radiance_{}.pdf".format(correspond_optic[answer.lower()]), format="pdf", dpi=600, bbox_inches='tight')
 
     plt.show()

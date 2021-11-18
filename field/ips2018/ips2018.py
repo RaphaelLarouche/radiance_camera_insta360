@@ -93,7 +93,17 @@ if __name__ == "__main__":
         # Scalar irradiance
         Eo[pn] = tuple(im_rad.irradiance(0, 180, planar=False, interpolation=True))
 
-    # Figure 2
+    # Attenuation coefficients
+
+    # Absoprtion coefficients
+    absorption = np.zeros(len(wanted_images), dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4')]))
+
+    depths *= 100  # m to cm
+    absorption["r"] = r.attenuation_coefficient((Ed["r"] - Eu["r"]), depths) * ((Ed["r"] - Eu["r"]) / Eo["r"])
+    absorption["g"] = r.attenuation_coefficient((Ed["g"] - Eu["g"]), depths) * ((Ed["g"] - Eu["g"]) / Eo["g"])
+    absorption["b"] = r.attenuation_coefficient((Ed["b"] - Eu["b"]), depths) * ((Ed["b"] - Eu["b"]) / Eo["b"])
+
+    # Figure 2 irradiance profiles
     fig2, ax2 = plt.subplots(1, 3, sharey=True)
     ax2[0].plot(Ed["r"], depths, color="r")
     ax2[0].plot(Eu["r"], depths, color="r")
@@ -108,5 +118,15 @@ if __name__ == "__main__":
     ax2[2].plot(Eo["b"], depths, color="b")
 
     ax2[0].invert_yaxis()
+
+    # Figure 3 - absorption coefficient
+    fig3, ax3 = plt.subplots(1, 1)
+
+    ax3.plot(absorption["r"], depths, color="r")
+    ax3.plot(absorption["g"], depths, color="g")
+    ax3.plot(absorption["b"], depths, color="b")
+
+    ax3.invert_yaxis()
+
 
     plt.show()
