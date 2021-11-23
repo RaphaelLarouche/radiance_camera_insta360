@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 from mpl_toolkits.mplot3d import Axes3D
+#from mpl_toolkits.mplot3d import proj3d, proj3d.
 
 # Other module
 from source.processing import FigureFunctions, ProcessImage
@@ -33,7 +34,7 @@ def polar_plot_contourf(zenith_mesh, azimuth_mesh, mappedradiance, fig, ax, ncon
             insideFOV = np.where(im > 0)
             mini, maxi = np.nanmin(im[insideFOV]), np.nanmax(im[insideFOV])
 
-            cax = a.contourf(azi, zeni, np.clip(im, 0, None), np.linspace(mini, maxi, ncontour), cmap="coolwarm")
+            cax = a.contourf(azi, zeni, np.clip(im, 0, None), np.linspace(mini, maxi, ncontour), cmap="viridis")
 
             # Ticks Zenith
             if n == 1 or n == 2:
@@ -54,7 +55,7 @@ def polar_plot_contourf(zenith_mesh, azimuth_mesh, mappedradiance, fig, ax, ncon
             cl.ax.set_xticklabels([format(xt, '.2e') for xt in ls_xtick], rotation=30, fontsize=7)
 
             # Letter at corner of image
-            a.text(-0.1, 1.1, "(" + string.ascii_lowercase[n] + ")", transform=a.transAxes, size=11, weight='bold')
+            #a.text(-0.1, 1.1, "(" + string.ascii_lowercase[n] + ")", transform=a.transAxes, size=11, weight='bold')
 
         fig.tight_layout()
         return fig, ax
@@ -89,6 +90,7 @@ def vertical_stack_radiance(data_keys, dkeys_polar, ncontour):
                 a1[i, j] = f1.add_subplot(2, 3, int((i+1) * (j+1)), projection="polar")
             else:
                 a1[i, j] = f1.add_subplot(2, 3, int((i+1) * (j+1) + (2 - j)), projection="3d")
+                a1[i, j].set_box_aspect(aspect=(1, 1, 2))
 
     d = np.array([])
     bands = ["r", "g", "b"]
@@ -103,7 +105,7 @@ def vertical_stack_radiance(data_keys, dkeys_polar, ncontour):
         for n in range(curr_rp.shape[2]):
 
             curr_rp_norm = curr_rp[:, :, n] / np.nanmax(curr_rp[:, :, n])  # Normalization
-            cf = a1[1, n].contourf(x, y, curr_rp_norm, ncontour, zdir='z', offset=dept, vmin=0, vmax=1, cmap="coolwarm")
+            cf = a1[1, n].contourf(x, y, curr_rp_norm, ncontour, zdir='z', offset=dept, vmin=0, vmax=1, cmap="viridis")
 
     # Adding polar plot contour
     f1, a1[0, :] = polar_plot_contourf(zenith_m * np.pi / 180,
@@ -128,9 +130,8 @@ def vertical_stack_radiance(data_keys, dkeys_polar, ncontour):
         cbl.ax.set_xticks(ls_xtick)
         cbl.ax.set_xticklabels([format(xt, '.2f') for xt in ls_xtick], rotation=30, fontsize=7)
 
-        a1[1, n].set_zlabel("Depth [cm]", fontsize=7)
+    a1[1, 0].set_zlabel("Depth [cm]", fontsize=7)
 
-    f1.tight_layout()
     return f1, a1
 
 

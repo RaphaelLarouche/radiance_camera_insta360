@@ -178,6 +178,7 @@ if __name__ == "__main__":
     ff = FigureFunctions()
 
     path_i360 = os.path.dirname(os.path.dirname(__file__))
+    path_to_volume = process.folder_choice()
 
     # Choice of lens
     while True:
@@ -188,10 +189,13 @@ if __name__ == "__main__":
     if answer.lower() == "c":
 
         # Path to images
-        imagespath = "/Volumes/MYBOOK/data-i360-tests/calibrations/immersion-factor/09102020/lensclose"
+        #imagespath = "/Volumes/MYBOOK/data-i360-tests/calibrations/immersion-factor/09102020/lensclose"
+        imagespath = path_to_volume + "data-i360-tests/calibrations/immersion-factor/09102020/lensclose"
 
         # Geometric calibration
-        geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5", "/lens-close/20200730_112353/")
+        #geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5", "/lens-close/20200730_112353/")
+        geocalib = h5py.File(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5")
+        geocalib = geocalib["/lens-close/20200730_112353/"]
 
         # Camera spectral response
         srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200610.h5", "r")
@@ -206,10 +210,13 @@ if __name__ == "__main__":
     elif answer.lower() == "f":
 
         # Path to images
-        imagespath = "/Volumes/MYBOOK/data-i360-tests/calibrations/immersion-factor/09102020/lensfar"
+        #imagespath = "/Volumes/MYBOOK/data-i360-tests/calibrations/immersion-factor/09102020/lensfar"
+        imagespath = path_to_volume + "data-i360-tests/calibrations/immersion-factor/09102020/lensfar"
 
         # Geometric calibration
-        geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5", "/lens-far/20200730_143716/")
+        #geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5", "/lens-far/20200730_143716/")
+        geocalib = h5py.File(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5")
+        geocalib = geocalib["/lens-far/20200730_143716/"]
 
         # Camera spectral response
         srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200710.h5", "r")
@@ -260,7 +267,8 @@ if __name__ == "__main__":
     im_air_dws = process.dwnsampling(im_air_stack.mean(axis=2), "RGGB")
 
     # ______ Loops
-    plt.style.use("/Users/raphaellarouche/PycharmProjects/radiance_camera_i360/figurestyle.mplstyle")
+    plt.style.use("../../figurestyle.mplstyle")
+
     z = water_level - camera_z
 
     zenith_mask = 1.5  # degrees
@@ -324,8 +332,7 @@ if __name__ == "__main__":
 
         z_graph = np.linspace(0, z.max() * 1.1, 50)
         ax1[b].plot((slope * z_graph + intercept), z_graph, linestyle=linestl[1], color="k", label="Linear fit")
-
-        ax1[b].text(np.log(dn_water_zero[:, b]) * 1.01, 3, tx.format(slope, stderror * 1.96, intercept, std_int * 1.96, rval**2), fontsize=8)
+        ax1[b].text(np.log(dn_water_zero[:, b]) * 1.01, 3, tx.format(slope, stderror * 1.96, intercept, std_int * 1.96, rval**2), fontsize=7)
 
     immersion = dn_air_mean.ravel() / dn_water_zero
 
@@ -341,19 +348,19 @@ if __name__ == "__main__":
         ax1[b].plot(np.log(dn_water_mean[:, b]), z, "o", markersize=4, markeredgecolor="k", markerfacecolor="none", label="Water measurements")
         # ax1[b].errorbar(np.log(dn_water_mean[:, b]), z, xerr=dn_water_std[:, b]/dn_water_mean[:, b], marker="o",
         #                 linestyle="none", markersize=4, markerfacecolor="none", label="Water measurements")
-        ax1[b].errorbar(np.log(dn_air_mean[b]), 0, xerr=err_air.T[0][b], color="grey", marker="s", markersize=3,  markerfacecolor="none",
+        ax1[b].errorbar(np.log(dn_air_mean[b]), 0, xerr=err_air.T[0][b], color="grey", marker="s", markersize=4,  markerfacecolor="none",
                         linestyle="none", label="$DN(0^{+})$")
-        ax1[b].errorbar(np.log(dn_water_zero[0][b]), 0, color="grey", xerr=inter_std[0][b], marker="^", markersize=3,  markerfacecolor="none",
+        ax1[b].errorbar(np.log(dn_water_zero[0][b]), 0, color="grey", xerr=inter_std[0][b], marker="^", markersize=4,  markerfacecolor="none",
                      linestyle="none", label="$DN(0^{-})$")
 
         ax1[b].set_ylabel("z [cm]")
         ax1[b].set_xlabel("$\ln~DN_{i}$")
 
-        ax1[b].legend(loc="lower right")
+        ax1[b].legend(loc="lower right", fontsize=8)
 
         ax1[b].invert_yaxis()
 
-        ax1[b].text(-0.05, 1.05, "(" + string.ascii_lowercase[b] + ")", transform=ax1[b].transAxes, size=11, weight='bold')
+        ax1[b].text(0.01, 0.87, "(" + string.ascii_lowercase[b] + ")", transform=ax1[b].transAxes, size=11, weight='bold')
 
     # Figure 2
     pageID_NBK7 = 805  # pageid 805 for Schott NBK7 glass
@@ -384,6 +391,10 @@ if __name__ == "__main__":
     # Saving figures
     fig1.tight_layout()
 
+    optics_correspondance = {"c": "close", "f": "far"}
+    fig1.savefig("figures/immersion-factor-{0}.pdf".format(optics_correspondance[answer.lower()]), format="pdf", dpi=600)
+    fig1.savefig("figures/immersion-factor-{0}.png".format(optics_correspondance[answer.lower()]), format="png", dpi=600)
+
     # Saving results
     save_file = process.save_results()
 
@@ -396,8 +407,5 @@ if __name__ == "__main__":
             process.create_hdf5_dataset(pathname, "lens-close/" + timestr, "immersion", immersion)
         elif answer.lower() == "f":
             process.create_hdf5_dataset(pathname, "lens-far/" + timestr, "immersion", immersion)
-
-        optics_correspondance = {"c": "close", "f": "far"}
-        fig1.savefig("figures/immersion-factor-{0}.pdf".format(optics_correspondance[answer.lower()]), format="pdf", dpi=600)
 
     plt.show()

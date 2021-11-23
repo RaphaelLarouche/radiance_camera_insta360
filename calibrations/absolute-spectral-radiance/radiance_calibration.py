@@ -253,11 +253,11 @@ if __name__ == "__main__":
     fig.savefig("figures/output_sphere_{}.pdf".format(correspond_optic[answer.lower()]), format="pdf", dpi=600,
                 bbox_inches='tight')
     fig.savefig("figures/output_sphere_{}.png".format(correspond_optic[answer.lower()]), format="png", dpi=600,
-                bbox_inches='tight')
+                bbox_inches='tight')  # png
     fig2.savefig("figures/spectral_radiance_{}.pdf".format(correspond_optic[answer.lower()]), format="pdf", dpi=600,
                  bbox_inches='tight')
     fig2.savefig("figures/spectral_radiance_{}.png".format(correspond_optic[answer.lower()]), format="png", dpi=600,
-                 bbox_inches='tight')
+                 bbox_inches='tight') # png
 
     # Saving calibration
     if save_answer == "y":
