@@ -5,7 +5,7 @@ Random classes.
 
 # Module importation
 import os
-import cv2
+# import cv2
 import time
 import h5py
 import glob
@@ -770,3 +770,4 @@ if __name__ == "__main__":
     f_spectr = FlameSpectrometer("/Volumes/MYBOOK/data-i360-tests/calibrations/absolute-radiance/09082020")
 
     plt.show()
+
