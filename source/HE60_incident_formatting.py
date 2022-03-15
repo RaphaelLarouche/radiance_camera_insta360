@@ -3,9 +3,11 @@ import radiance as r
 from geometric_rolloff import OpenMatlabFiles
 from processing import ProcessImage, FigureFunctions
 import pandas
+import matplotlib.pyplot as plt
+import numpy as np
 
 from HE60PY.ac9simulation import AC9Simulation
-
+from HE60PY.Tools.environmentbuilder import create_irrad_file
 
 
 # Function and classes
@@ -34,19 +36,15 @@ def open_TriOS_data(min_date="2018-08-31 8:00", max_date="2018-08-31 16:00", pat
 
 
 if __name__ == "__main__":
+    path_to_irrad_file = '/Applications/HE60.app/Contents/data/HE60DORT_irrad_trios_.txt'
     # process = ProcessImage()
     # ze_mesh, az_mesh, rad_profile = process.open_radiance_data(path="data/oden-08312018.h5")
     # print(az_mesh, '\n', ze_mesh)
-    # time_stamp, radiometer_wl, irr_incom, irr_below = open_TriOS_data()
+    time_stamp, radiometer_wl, irr_incom, irr_below = open_TriOS_data()
+    mean_irrad = np.mean(irr_incom, axis=1)
+    create_irrad_file(wavelength_Ed=np.array((radiometer_wl, mean_irrad)).T, total_path=path_to_irrad_file)
 
-    path_to_user_files = r'/Users/braulier/Documents/HE60/run'
-    wavelength_abs_built_sim = AC9Simulation(path=path_to_user_files,
-                                             run_title='He60_dort_comp',
-                                             root_name='he60_comp',
-                                             mode='HE60DORT')
-    wavelength_abs_built_sim.set_z_grid(z_max=2.0, wavelength_list=[484, 544, 602])
-    wavelength_abs_built_sim.add_layer(z1=0.0, z2=0.10, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=2277, bb=0.0) # bb arg is not relevent since we use a discretized phase function in a file indepêdnant of depth (g=0.98)
-    wavelength_abs_built_sim.add_layer(z1=0.10, z2=0.80, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=303, bb=0.0)
-    wavelength_abs_built_sim.add_layer(z1=0.80, z2=2.01, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=79, bb=0.0)
-    wavelength_abs_built_sim.run_simulation(printoutput=True)
-
+    print(radiometer_wl.shape, irr_incom.shape)
+    for i in range(9):
+        plt.plot(radiometer_wl, irr_incom[:,i])
+    plt.show()
