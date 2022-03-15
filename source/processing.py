@@ -5,7 +5,7 @@ Random classes.
 
 # Module importation
 import os
-# import cv2
+import cv2
 import time
 import h5py
 import glob

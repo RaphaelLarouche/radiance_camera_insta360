@@ -7,7 +7,7 @@ Classes for geometric calibration methods of insta360 ONE.
 import os
 import deepdish
 import numpy as np
-import matlab.engine
+# import matlab.engine
 import matplotlib.cm
 import scipy.io as spio
 import matplotlib.pyplot as plt
@@ -15,7 +15,7 @@ from scipy.optimize import curve_fit
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 
 # Other modules
-from source.processing import ProcessImage
+from processing import ProcessImage
 
 
 # Classes

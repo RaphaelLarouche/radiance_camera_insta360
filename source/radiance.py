@@ -18,8 +18,8 @@ from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 
 # Other module
-from source.processing import ProcessImage
-from source.geometric_rolloff import MatlabGeometricMengine
+from processing import ProcessImage
+from geometric_rolloff import MatlabGeometricMengine
 
 
 # Classes
