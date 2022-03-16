@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import integrate
 from scipy.optimize import curve_fit
+import pandas as pd
 
 
 # Functions and classes
@@ -152,7 +153,7 @@ def create_irradiance_data(zenith_mesh, azimuth_mesh, radiance_mesh, keys_ordere
     return ed, eu, eo
 
 
-def graph_dort_vs_measurements(depths, irradiance_dort, irradiance_meas):
+def graph_dort_vs_measurements(depths, irradiance_dort, irradiance_meas, HE60_df):
     """
 
     :param irradiance_dort:
@@ -167,16 +168,25 @@ def graph_dort_vs_measurements(depths, irradiance_dort, irradiance_meas):
 
     band_name = ["r", "g", "b"]
 
+    HE_60_bands = ['600.0', '540.0', '480.0']
+    depths_HE60 = HE60_df['depths']
+
     for b in range(3):
 
-        ax[b].plot(i_d[band_name[b]], depths, linewidth=0.8, color="#a6cee3", linestyle="-", label="$E_{d}$")
-        ax[b].plot(i_u[band_name[b]], depths, linewidth=0.8, color="#1f78b4", linestyle="-", label="$E_{u}$")
-        ax[b].plot(i_o[band_name[b]], depths, linewidth=0.8, color="#b2df8a", linestyle="-", label="$E_{0}$")
+        ax[b].plot(i_d[band_name[b]], depths, linewidth=1.4, color="#a6cee3", linestyle="-", label="$E_{d}$")
+        ax[b].plot(i_u[band_name[b]], depths, linewidth=1.4, color="#1f78b4", linestyle="-", label="$E_{u}$")
+        ax[b].plot(i_o[band_name[b]], depths, linewidth=1.4, color="#b2df8a", linestyle="-", label="$E_{0}$")
 
-        ax[b].plot(i_d_dort[band_name[b]], depths, linewidth=0.8, color="#a6cee3", linestyle="--")
-        ax[b].plot(i_u_dort[band_name[b]], depths, linewidth=0.8, color="#1f78b4", linestyle="--")
-        ax[b].plot(i_o_dort[band_name[b]], depths, linewidth=0.8, color="#b2df8a", linestyle="--")
+        ax[b].plot(i_d_dort[band_name[b]], depths, linewidth=1.4, color="#a6cee3", linestyle="--")
+        ax[b].plot(i_u_dort[band_name[b]], depths, linewidth=1.4, color="#1f78b4", linestyle="--")
+        ax[b].plot(i_o_dort[band_name[b]], depths, linewidth=1.4, color="#b2df8a", linestyle="--")
 
+        ax[b].plot(HE60_df[f'Ed_{HE_60_bands[b]}'][1:], depths_HE60[1:]*100, linewidth=1.4, color="#a6cee3", linestyle="dotted")
+        ax[b].plot(HE60_df[f'Eu_{HE_60_bands[b]}'][1:], depths_HE60[1:]*100, linewidth=1.4, color="#1f78b4", linestyle="dotted")
+        ax[b].plot(HE60_df[f'Eo_{HE_60_bands[b]}'][1:], depths_HE60[1:]*100, linewidth=1.4, color="#b2df8a", linestyle="dotted")
+
+
+        ax[b].set_ylim([0, 200])
         ax[b].set_xscale("log")
         ax[b].invert_yaxis()
 
@@ -263,7 +273,7 @@ if __name__ == "__main__":
                                                                                       "160 cm",
                                                                                       "180 cm",
                                                                                       "200 cm"])
-
-    fig1, ax1 = graph_dort_vs_measurements(np.arange(0, 220, 20), (ed_dort, eu_dort, eo_dort), (ed_oden, eu_oden, eo_oden))
+    HE60_dataframe = pd.read_csv('data/HE60_results.txt')
+    fig1, ax1 = graph_dort_vs_measurements(np.arange(0, 220, 20), (ed_dort, eu_dort, eo_dort), (ed_oden, eu_oden, eo_oden), HE60_dataframe)
 
     plt.show()

@@ -5,6 +5,7 @@ from processing import ProcessImage, FigureFunctions
 import pandas
 
 from HE60PY.ac9simulation import AC9Simulation
+from HE60PY.data_manager import DataFinder
 
 
 
@@ -40,13 +41,18 @@ if __name__ == "__main__":
     # time_stamp, radiometer_wl, irr_incom, irr_below = open_TriOS_data()
 
     path_to_user_files = r'/Users/braulier/Documents/HE60/run'
-    wavelength_abs_built_sim = AC9Simulation(path=path_to_user_files,
-                                             run_title='He60_dort_comp',
+    oden_simulation = AC9Simulation(path=path_to_user_files,
+                                             run_title='He60_dort_oden_comp',
                                              root_name='he60_comp',
                                              mode='HE60DORT')
-    wavelength_abs_built_sim.set_z_grid(z_max=2.0, wavelength_list=[484, 544, 602])
-    wavelength_abs_built_sim.add_layer(z1=0.0, z2=0.10, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=2277, bb=0.0) # bb arg is not relevent since we use a discretized phase function in a file indepêdnant of depth (g=0.98)
-    wavelength_abs_built_sim.add_layer(z1=0.10, z2=0.80, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=303, bb=0.0)
-    wavelength_abs_built_sim.add_layer(z1=0.80, z2=2.01, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=79, bb=0.0)
-    wavelength_abs_built_sim.run_simulation(printoutput=True)
+    oden_simulation.set_z_grid(z_max=3.0, wavelength_list=[484, 544, 602])
+    oden_simulation.add_layer(z1=0.0, z2=0.10, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=2277, bb=0.0) # bb arg is not relevent since we use a discretized phase function in a file indepêdnant of depth (g=0.98)
+    oden_simulation.add_layer(z1=0.10, z2=0.80, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=303, bb=0.0)
+    oden_simulation.add_layer(z1=0.80, z2=2.0, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=79, bb=0.0)
+    oden_simulation.add_layer(z1=2.0, z2=3.01, abs={'484': 0.01, '544': 0.01, '602': 0.01}, scat=0.1, bb=0.0)
+    oden_simulation.run_simulation(printoutput=True)
+
+    oden_analysis = DataFinder(oden_simulation.hermes)
+    results = oden_analysis.get_Eudos_lambda()
+    results.to_csv('data/HE60_results.txt')
 
