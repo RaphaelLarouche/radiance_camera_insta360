@@ -11,6 +11,7 @@ from scipy import integrate
 from scipy.optimize import curve_fit
 import pandas as pd
 
+plt.rcParams.update({'font.size': 14})
 
 # Functions and classes
 def azimuthal_average(rad):
@@ -164,7 +165,7 @@ def graph_dort_vs_measurements(depths, irradiance_dort, irradiance_meas, HE60_df
     i_d, i_u, i_o = irradiance_meas
     i_d_dort, i_u_dort, i_o_dort = irradiance_dort
 
-    fig, ax = plt.subplots(1, 3, sharey=True, sharex=True, figsize=(6.136, 3.784))
+    fig, ax = plt.subplots(1, 3, sharey=True, sharex=True, figsize=(13,8))
 
     band_name = ["r", "g", "b"]
 
@@ -173,17 +174,21 @@ def graph_dort_vs_measurements(depths, irradiance_dort, irradiance_meas, HE60_df
 
     for b in range(3):
 
-        ax[b].plot(i_d[band_name[b]], depths, linewidth=1.4, color="#a6cee3", linestyle="-", label="$E_{d}$")
-        ax[b].plot(i_u[band_name[b]], depths, linewidth=1.4, color="#1f78b4", linestyle="-", label="$E_{u}$")
-        ax[b].plot(i_o[band_name[b]], depths, linewidth=1.4, color="#b2df8a", linestyle="-", label="$E_{0}$")
+        ax[b].plot(i_d[band_name[b]], depths, linewidth=1.4, color="#003f5c", linestyle="-", label="$E_{d}$")
+        ax[b].plot(i_u[band_name[b]], depths, linewidth=1.4, color="#bc5090", linestyle="-", label="$E_{u}$")
+        ax[b].plot(i_o[band_name[b]], depths, linewidth=1.4, color="#ffa600", linestyle="-", label="$E_{0}$")
 
-        ax[b].plot(i_d_dort[band_name[b]], depths, linewidth=1.4, color="#a6cee3", linestyle="--")
-        ax[b].plot(i_u_dort[band_name[b]], depths, linewidth=1.4, color="#1f78b4", linestyle="--")
-        ax[b].plot(i_o_dort[band_name[b]], depths, linewidth=1.4, color="#b2df8a", linestyle="--")
+        HE60_df[f'Ed_{HE_60_bands[b]}'][1:] = HE60_df[f'Ed_{HE_60_bands[b]}'][1:]/1.355**2
+        HE60_df[f'Eu_{HE_60_bands[b]}'][1:] = HE60_df[f'Eu_{HE_60_bands[b]}'][1:]/1.355**2
+        HE60_df[f'Eo_{HE_60_bands[b]}'][1:] = HE60_df[f'Eo_{HE_60_bands[b]}'][1:]/1.355**2
 
-        ax[b].plot(HE60_df[f'Ed_{HE_60_bands[b]}'][1:], depths_HE60[1:]*100, linewidth=1.4, color="#a6cee3", linestyle="dotted")
-        ax[b].plot(HE60_df[f'Eu_{HE_60_bands[b]}'][1:], depths_HE60[1:]*100, linewidth=1.4, color="#1f78b4", linestyle="dotted")
-        ax[b].plot(HE60_df[f'Eo_{HE_60_bands[b]}'][1:], depths_HE60[1:]*100, linewidth=1.4, color="#b2df8a", linestyle="dotted")
+        ax[b].plot(HE60_df[f'Ed_{HE_60_bands[b]}'], depths_HE60*100, linewidth=2.0, color="#003f5c", linestyle="dotted", label=r'$E_u$ HE')
+        ax[b].plot(HE60_df[f'Eu_{HE_60_bands[b]}'], depths_HE60*100, linewidth=2.0, color="#bc5090", linestyle="dotted", label=r'$E_d$ HE')
+        ax[b].plot(HE60_df[f'Eo_{HE_60_bands[b]}'], depths_HE60*100, linewidth=2.0, color="#ffa600", linestyle="dotted", label=r'$E_o$ HE')
+
+        ax[b].plot(i_d_dort[band_name[b]], depths, linewidth=2.0, color="#003f5c", linestyle="--", label=r'$E_u$ DORT')
+        ax[b].plot(i_u_dort[band_name[b]], depths, linewidth=2.0, color="#bc5090", linestyle="--", label=r'$E_d$ DORT')
+        ax[b].plot(i_o_dort[band_name[b]], depths, linewidth=2.0, color="#ffa600", linestyle="--", label=r'$E_o$ DORT')
 
 
         ax[b].set_ylim([0, 200])
@@ -193,9 +198,9 @@ def graph_dort_vs_measurements(depths, irradiance_dort, irradiance_meas, HE60_df
         ax[b].set_xlabel("$E~[\mathrm{W \cdot m^{-2} \cdot nm^{-1}}]$")
         ax[b].text(-0.05, 1.05, "(" + string.ascii_lowercase[b] + ")", transform=ax[b].transAxes, size=11, weight='bold')
 
-        ax[b].legend(loc="best", frameon=False, fontsize=6)
-        ax[b].annotate("- : measurements\n-- : simulations", (0.04, 0.7), xycoords="axes fraction", fontsize=6)
-
+        # ax[b].legend(loc="best", frameon=False, fontsize=6)
+        # ax[b].annotate("- : measurements\n-- : DORT\n·· : HE  ", (0.04, 0.7), xycoords="axes fraction", fontsize=6)
+    ax[2].legend()
     ax[0].set_ylabel("Depth [cm]")
 
     fig.tight_layout()
@@ -273,7 +278,9 @@ if __name__ == "__main__":
                                                                                       "160 cm",
                                                                                       "180 cm",
                                                                                       "200 cm"])
-    HE60_dataframe = pd.read_csv('data/HE60_results.txt')
+    # path = '/Users/braulier/Documents/Maitrise/Raphael/radiance_camera_insta360/source/data/HE60_results'
+    path = '/Users/braulier/Documents/Maitrise/Raphael/radiance_camera_insta360/source/data/HE60_results_only_7_tios.txt'
+    HE60_dataframe = pd.read_csv(path)
     fig1, ax1 = graph_dort_vs_measurements(np.arange(0, 220, 20), (ed_dort, eu_dort, eo_dort), (ed_oden, eu_oden, eo_oden), HE60_dataframe)
-
+    # plt.savefig('data/figures/HE_results_comp_dort_zoom.png')
     plt.show()

@@ -36,15 +36,18 @@ def open_TriOS_data(min_date="2018-08-31 8:00", max_date="2018-08-31 16:00", pat
 
 
 if __name__ == "__main__":
-    path_to_irrad_file = '/Applications/HE60.app/Contents/data/HE60DORT_irrad_trios_.txt'
+    #  R: 0.17, G: 0.18, B: 0.19
+    path_to_irrad_file = '/Applications/HE60.app/Contents/data/HE60DORT_irrad_trios_7.txt'
     # process = ProcessImage()
     # ze_mesh, az_mesh, rad_profile = process.open_radiance_data(path="data/oden-08312018.h5")
     # print(az_mesh, '\n', ze_mesh)
     time_stamp, radiometer_wl, irr_incom, irr_below = open_TriOS_data()
     mean_irrad = np.mean(irr_incom, axis=1)
-    create_irrad_file(wavelength_Ed=np.array((radiometer_wl, mean_irrad)).T, total_path=path_to_irrad_file)
-
+    create_irrad_file(wavelength_Ed=np.array((radiometer_wl, irr_incom[:, 7])).T, total_path=path_to_irrad_file)
+    plt.plot(radiometer_wl, mean_irrad)
+    plt.show()
     print(radiometer_wl.shape, irr_incom.shape)
     for i in range(9):
-        plt.plot(radiometer_wl, irr_incom[:,i])
+        plt.plot(radiometer_wl, irr_incom[:,i], label=i)
+    plt.legend()
     plt.show()
