@@ -253,6 +253,7 @@ if __name__ == "__main__":
 
     # Open measurements
     zen_oden, azi_oden, rad_oden = open_radiance_data(path="data/oden-08312018.h5")  # Path à changer
+
     ed_oden, eu_oden, eo_oden = create_irradiance_data(zen_oden, azi_oden, rad_oden, ["zero minus",
                                                                                       "20 cm (in water)",
                                                                                       "40 cm",
@@ -279,7 +280,7 @@ if __name__ == "__main__":
                                                                                       "180 cm",
                                                                                       "200 cm"])
     # path = '/Users/braulier/Documents/Maitrise/Raphael/radiance_camera_insta360/source/data/HE60_results'
-    path = '/Users/braulier/Documents/Maitrise/Raphael/radiance_camera_insta360/source/data/HE60_results_only_7_tios.txt'
+    path = '/Users/braulier/Documents/Maitrise/Raphael/radiance_camera_insta360/source/data/HE60_results.txt'
     HE60_dataframe = pd.read_csv(path)
     fig1, ax1 = graph_dort_vs_measurements(np.arange(0, 220, 20), (ed_dort, eu_dort, eo_dort), (ed_oden, eu_oden, eo_oden), HE60_dataframe)
     # plt.savefig('data/figures/HE_results_comp_dort_zoom.png')
