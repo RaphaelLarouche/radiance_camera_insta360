@@ -11,13 +11,8 @@ if __name__ == "__main__":
     oden_simulation = AC9Simulation(path=path_to_user_files,
                                                  run_title='low_iop_test',
                                                  root_name='low_iop_test',
-                                                 mode='HE60DORT', refr=1.00,
-                                    zetanom=np.linspace(0.0, 3.00, 301), nznom=301)
+                                                 mode='HE60DORT')
     oden_simulation.set_z_grid(z_max=3.00, wavelength_list=[484, 544, 602])
-    # oden_simulation.add_layer(z1=0.0, z2=0.10, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=250, bb=0.0)  # 2277 # bb arg is not relevent since we use a discretized phase function in a file indepêdnant of depth (g=0.98)
-    # oden_simulation.add_layer(z1=0.10, z2=1.71, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=200, bb=0.0)  # 303
-    # oden_simulation.add_layer(z1=1.71, z2=1.84, abs={'484': 1.28, '544': 0.0683, '602': 0.12}, scat=200, bb=0.0)  # 79
-    # oden_simulation.add_layer(z1=1.84, z2=3.01, abs={'484': 1.36e-2, '544': 5.11e-2, '602': 2.224e-1}, scat=0.1, bb=0.0)  # 0.1
     oden_simulation.add_layer(z1=0.0, z2=0.20, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=2277, bb=0.0)  # 2277 # bb arg is not relevent since we use a discretized phase function in a file indepêdnant of depth (g=0.98)
     oden_simulation.add_layer(z1=0.20, z2=0.80, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=303, bb=0.0)  # 303
     oden_simulation.add_layer(z1=0.80, z2=2.00, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=79, bb=0.0)  # 79
@@ -44,7 +39,7 @@ if __name__ == "__main__":
         ax[i].set_xlabel("$E~[\mathrm{W \cdot m^{-2} \cdot nm^{-1}}]$")
         ax[i].set_title(f'{band} nm')
     plt.tight_layout()
-    plt.savefig(f'data/figures/mobley.png')
+    # plt.savefig(f'data/figures/mobley.png')
     plt.show()
 
 

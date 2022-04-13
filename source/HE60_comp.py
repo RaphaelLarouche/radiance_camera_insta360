@@ -4,7 +4,7 @@ from geometric_rolloff import OpenMatlabFiles
 from processing import ProcessImage, FigureFunctions
 import pandas
 
-from HE60PY.ac9simulation import SeaIceSimulation
+from HE60PY.seaicesimulation import SeaIceSimulation
 from HE60PY.data_manager import DataFinder
 
 import numpy as np
