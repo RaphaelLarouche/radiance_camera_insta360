@@ -5,7 +5,8 @@ from processing import ProcessImage, FigureFunctions
 import pandas
 
 from HE60PY.seaicesimulation import SeaIceSimulation
-from HE60PY.data_manager import DataFinder
+from HE60PY.dataparser import DataParser
+from HE60PY.dataviewer import DataViewer
 
 import numpy as np
 
@@ -39,19 +40,27 @@ if __name__ == "__main__":
     # ze_mesh, az_mesh, rad_profile = process.open_radiance_data(path="data/oden-08312018.h5")
     # print(az_mesh, '\n', ze_mesh)
     # time_stamp, radiometer_wl, irr_incom, irr_below = open_TriOS_data()
-    path_to_user_files = r'/Users/braulier/Documents/HE60/run'
-    oden_simulation = SeaIceSimulation(path=path_to_user_files,
-                                                 run_title=f'He60_dort_oden',
-                                                 root_name=f'he60_comp_dort',
-                                                 mode='HE60DORT', nznom=301, zetanom=np.linspace(0.0, 3.00, 301))
+    # b_ssl, b_dl, b_il, = 2000., 400., 90.
+    b_ssl, b_dl, b_il, = np.array([1e4, 1070., 281.])
+    # pf_ice = 'dpf_OTHG_0_98.txt'
+    pf_ice = "dpf_brine_1_96.txt"
+    oden_simulation = SeaIceSimulation(run_title=f'He60_dort_oden_brine', root_name=f'he60_comp_dort_brine', mode='HE60DORT',)
     oden_simulation.set_z_grid(z_max=3.0, wavelength_list=[484, 544, 602])
-    oden_simulation.add_layer(z1=0.0, z2=0.10, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=2277, dpf='dpf_OTHG_0_98.txt') # bb arg is not relevent since we use a discretized phase function in a file indepêdnant of depth (g=0.98)
-    oden_simulation.add_layer(z1=0.10, z2=0.80, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=303, dpf='dpf_OTHG_0_98.txt')
-    oden_simulation.add_layer(z1=0.80, z2=2.0, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=79, dpf='dpf_OTHG_0_98.txt')
-    oden_simulation.add_layer(z1=2.0, z2=3.01, abs={'484': 1.36e-2, '544': 5.11e-2, '602': 2.224e-1}, scat=0.1, dpf='dpf_OTHG_0_98.txt')
+    oden_simulation.add_layer(z1=0.0, z2=0.20, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=b_ssl, dpf=pf_ice) # bb arg is not relevent since we use a discretized phase function in a file indepêdnant of depth (g=0.98)
+    oden_simulation.add_layer(z1=0.20, z2=0.80, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=b_dl, dpf=pf_ice)
+    oden_simulation.add_layer(z1=0.80, z2=2.0, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=b_il, dpf=pf_ice)
+    oden_simulation.add_layer(z1=2.0, z2=3.01, abs={'484': 1.36e-2, '544': 5.11e-2, '602': 2.224e-1}, scat=0.1, dpf='dpf_OTHG_0_90.txt')
     oden_simulation.run_simulation(printoutput=True)
-    #
-    # oden_analysis = DataFinder(oden_simulation.hermes)
-    # results = oden_analysis.get_Eudos_lambda()
-    # results.to_csv(f'data/HE60_results_only_7_tios.txt')
+    oden_simulation.parse_results()
+    # oden_simulation.draw_figures()
 
+    pf_ice = 'dpf_OTHG_0_98.txt'
+    # pf_ice = "dpf_brine_1_96.txt"
+    oden_simulation = SeaIceSimulation(run_title=f'He60_dort_oden_HG', root_name=f'he60_comp_dort_HG', mode='HE60DORT',)
+    oden_simulation.set_z_grid(z_max=3.0, wavelength_list=[484, 544, 602])
+    oden_simulation.add_layer(z1=0.0, z2=0.20, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=b_ssl, dpf=pf_ice) # bb arg is not relevent since we use a discretized phase function in a file indepêdnant of depth (g=0.98)
+    oden_simulation.add_layer(z1=0.20, z2=0.80, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=b_dl, dpf=pf_ice)
+    oden_simulation.add_layer(z1=0.80, z2=2.0, abs={'484': 0.0430, '544': 0.0683, '602': 0.12}, scat=b_il, dpf=pf_ice)
+    oden_simulation.add_layer(z1=2.0, z2=3.01, abs={'484': 1.36e-2, '544': 5.11e-2, '602': 2.224e-1}, scat=0.1, dpf='dpf_OTHG_0_90.txt')
+    oden_simulation.run_simulation(printoutput=True)
+    oden_simulation.parse_results()

@@ -21,6 +21,11 @@ from HE60PY.dataparser import DataParser
 from HE60PY.dataviewer import DataViewer
 
 
+import warnings
+warnings.filterwarnings("ignore")
+
+
+
 # Functions and classes
 class OpenMatlabFiles:
     """
@@ -189,7 +194,6 @@ def create_irradiance_data(zenith_mesh, azimuth_mesh, radiance_mesh, keys_ordere
     # LOOP
     for i, ke in enumerate(keys_ordered):
 
-        print(ke)
         dort_rad = radiance_mesh[ke]
 
         if oden:
@@ -392,7 +396,7 @@ def graph_cam_vs_simulations(radiance_camera, zenith_camera, radiance_simul, zen
 
             # MUPD
             ref_values = 0.5 * (rad_sim_avg_interpo + rad_cam_avg[:, b])
-            rel_err = (rad_cam_avg[:, b] - rad_sim_avg_interpo) / ref_values
+            rel_err = (rad_sim_avg_interpo - rad_cam_avg[:, b]) / ref_values
             mre_profile[i, b] = np.nanmean(rel_err)
 
             #
@@ -465,9 +469,9 @@ def graph_cam_vs_HE60_simulations(radiance_camera, zenith_camera, root_name, cam
     cm_it_g = iter(colo_greens(np.arange(0, colo_greens.N)))
     cm_it_b = iter(colo_blues(np.arange(0, colo_blues.N)))
 
-    colorbardepth(fig3, ax[0, 2], colo_reds, depth_color)
-    colorbardepth(fig3, ax[1, 2], colo_greens, depth_color)
-    colorbardepth(fig3, ax[2, 2], colo_blues, depth_color)
+    colorbardepth(fig, ax[0, 2], colo_reds, depth_color)
+    colorbardepth(fig, ax[1, 2], colo_greens, depth_color)
+    colorbardepth(fig, ax[2, 2], colo_blues, depth_color)
 
     # MUPD
     mre_profile = np.empty((len(cam_keys_order), 3))
@@ -495,8 +499,9 @@ def graph_cam_vs_HE60_simulations(radiance_camera, zenith_camera, root_name, cam
 
             # MUPD
             ref_values = 0.5 * (rad_sim_avg_interpo[:, b] + rad_cam_avg[:, b])
-            rel_err = (rad_cam_avg[:, b] - rad_sim_avg_interpo[:, b]) / ref_values
+            rel_err = ( rad_sim_avg_interpo[:, b] - rad_cam_avg[:, b]) / ref_values
             mre_profile[i, b] = np.nanmean(rel_err)
+            print("Comparison", rad_sim_avg_interpo[:, b], "\n" ,rad_cam_avg[:, b])
 
             #
             if b == 0:
@@ -517,7 +522,6 @@ def graph_cam_vs_HE60_simulations(radiance_camera, zenith_camera, root_name, cam
             ax[b, 0].set_ylabel("$\overline{L}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
             ax[b, 1].set_ylabel("$\overline{L}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
             ax[b, 2].set_ylabel("relative error [%]")
-            ax[b, 2].set_ylim((-40, 40))
 
     # Average mre
     mupd = np.abs(mre_profile).mean(axis=0) * 100
@@ -534,6 +538,27 @@ def graph_cam_vs_HE60_simulations(radiance_camera, zenith_camera, root_name, cam
 
     return fig, ax
 
+def draw_radiance_figure(rootname):
+    plt.style.use("../figurestyle.mplstyle")
+    zen_oden, azi_oden, rad_oden = open_radiance_data(path="oden-08312018.h5")
+    fig6, ax6 = graph_cam_vs_HE60_simulations(rad_oden, zen_oden, rootname, ["20 cm (in water)",
+                                                                                      "40 cm",
+                                                                                      "60 cm",
+                                                                                      "80 cm",
+                                                                                      "100 cm",
+                                                                                      "120 cm",
+                                                                                      "140 cm",
+                                                                                      "160 cm"], [0.20,
+                                                                                                  0.40,
+                                                                                                  0.60,
+                                                                                                  0.80,
+                                                                                                  1.00,
+                                                                                                  1.20,
+                                                                                                  1.41,
+                                                                                                  1.60])
+    fig6.savefig(f"data/{rootname}/radiance_comparison.png", dpi=600)
+    plt.show()
+    return 0
 
 if __name__ == "__main__":
 
@@ -671,7 +696,7 @@ if __name__ == "__main__":
                                                                                       "160 cm"])
 
 
-    fig6, ax6 = graph_cam_vs_HE60_simulations(rad_oden, zen_oden, "HE60DORT", ["20 cm (in water)",
+    fig6, ax6 = graph_cam_vs_HE60_simulations(rad_oden, zen_oden, 'he60_comp_dort_brine', ["20 cm (in water)",
                                                                                       "40 cm",
                                                                                       "60 cm",
                                                                                       "80 cm",
