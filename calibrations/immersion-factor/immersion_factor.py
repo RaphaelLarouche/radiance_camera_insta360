@@ -198,7 +198,9 @@ if __name__ == "__main__":
         geocalib = geocalib["/lens-close/20200730_112353/"]
 
         # Camera spectral response
-        srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200610.h5", "r")
+        #srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200610.h5", "r")
+        #srdata = srdata["lens-close"]
+        srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_fluorolog_20221103.h5", "r")
         srdata = srdata["lens-close"]
 
         # Water level
@@ -219,7 +221,10 @@ if __name__ == "__main__":
         geocalib = geocalib["/lens-far/20200730_143716/"]
 
         # Camera spectral response
-        srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200710.h5", "r")
+        #srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200710.h5", "r")
+        #srdata = srdata["lens-far"]
+
+        srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_fluorolog_20221103.h5", "r")
         srdata = srdata["lens-far"]
 
         # Water level
@@ -272,6 +277,7 @@ if __name__ == "__main__":
     z = water_level - camera_z
 
     zenith_mask = 1.5  # degrees
+    #zenith_mask = 3
 
     # Air measurements loop
     # Pre-allocation
@@ -318,11 +324,15 @@ if __name__ == "__main__":
     inter_std = np.empty((1, 3))
     tx = "$ln~DN_{{i}}(z) = m \cdot z + b$\n$m = ({0:.3f}\pm{1:.3f})$\n$b = ({2:.3f}\pm{3:.3f})$\n$R^{{2}} = {4:.3f}$"
 
-    fig1, ax1 = plt.subplots(3, 1, figsize=(ff.set_size(subplots=(2, 1), fraction=0.7)[0], ff.set_size(subplots=(2, 1))[1] * 0.8))
+    #fig1, ax1 = plt.subplots(3, 1, figsize=(ff.set_size(subplots=(2, 1), fraction=0.7)[0], ff.set_size(subplots=(2, 1))[1] * 0.8))
+    #fig1, ax1 = plt.subplots(1, 3, figsize=(ff.set_size(subplots=(1, 3))), sharey=True)
+    fig1, ax1 = plt.subplots(1, 3, figsize=(ff.set_size(height_ratio=0.45)), sharey=True)
 
     linestl = ["-", "-.", ":"]
+    col = ['#d95f02', '#1b9e77', '#7570b3']
     for b in range(dn_water_mean.shape[1]):
         slope, intercept, rval, _, stderror = stats.linregress(z, np.log(dn_water_mean[:, b]))
+        print(rval ** 2)
 
         _, std_int = estimators_std(slope, intercept, z, np.log(dn_water_mean[:, b]))
 
@@ -331,8 +341,11 @@ if __name__ == "__main__":
         inter_std[:, b] = std_int * 1.96
 
         z_graph = np.linspace(0, z.max() * 1.1, 50)
-        ax1[b].plot((slope * z_graph + intercept), z_graph, linestyle=linestl[1], color="k", label="Linear fit")
-        ax1[b].text(np.log(dn_water_zero[:, b]) * 1.01, 3, tx.format(slope, stderror * 1.96, intercept, std_int * 1.96, rval**2), fontsize=7)
+        #ax1[b].plot((slope * z_graph + intercept), z_graph, linestyle=linestl[1], color="k", label="Linear fit")
+        ax1[b].plot((slope * z_graph + intercept), z_graph, linestyle=linestl[b], color=col[b], label="Linear fit")
+        #ax1[b].text(np.log(dn_water_zero[:, b]) * 1.01, 3, tx.format(slope, stderror * 1.96, intercept, std_int * 1.96, rval**2), fontsize=7)
+        ax1[b].text(np.log(dn_water_mean[-2, b])-0.0035, 2,
+                    tx.format(slope, stderror * 1.96, intercept, std_int * 1.96, rval ** 2), fontsize=7)
 
     immersion = dn_air_mean.ravel() / dn_water_zero
 
@@ -345,22 +358,27 @@ if __name__ == "__main__":
     # ______ Figures
     # Figure 1
     for b in range(dn_water_mean.shape[1]):
-        ax1[b].plot(np.log(dn_water_mean[:, b]), z, "o", markersize=4, markeredgecolor="k", markerfacecolor="none", label="Water measurements")
+        #ax1[b].plot(np.log(dn_water_mean[:, b]), z, "o", markersize=4, markeredgecolor="k", markerfacecolor="none", label="Water measurements")
         # ax1[b].errorbar(np.log(dn_water_mean[:, b]), z, xerr=dn_water_std[:, b]/dn_water_mean[:, b], marker="o",
         #                 linestyle="none", markersize=4, markerfacecolor="none", label="Water measurements")
-        ax1[b].errorbar(np.log(dn_air_mean[b]), 0, xerr=err_air.T[0][b], color="grey", marker="s", markersize=4,  markerfacecolor="none",
-                        linestyle="none", label="$DN(0^{+})$")
-        ax1[b].errorbar(np.log(dn_water_zero[0][b]), 0, color="grey", xerr=inter_std[0][b], marker="^", markersize=4,  markerfacecolor="none",
-                     linestyle="none", label="$DN(0^{-})$")
+        #ax1[b].errorbar(np.log(dn_air_mean[b]), 0, xerr=err_air.T[0][b], color="grey", marker="s", markersize=4,  markerfacecolor="none",
+        #                linestyle="none", label="$DN(0^{+})$")
+        #ax1[b].errorbar(np.log(dn_water_zero[0][b]), 0, color="grey", xerr=inter_std[0][b], marker="^", markersize=4,  markerfacecolor="none",
+        #             linestyle="none", label="$DN(0^{-})$")
 
-        ax1[b].set_ylabel("z [cm]")
+        #ax1[b].errorbar(np.log(dn_water_mean[:, b]), z, xerr=dn_water_std[:, b]/(2* dn_water_mean[:, b]), linestyle="none", marker="o", markersize=4, ecolor=col[b], markeredgecolor=col[b], markerfacecolor="none", label="Water measurements")
+        ax1[b].plot(np.log(dn_water_mean[:, b]), z, "o", markersize=4, markeredgecolor=col[b], markerfacecolor="none", label="$\ln~DN(z)$")
+        #ax1[b].errorbar(np.log(dn_air_mean[b]), 0, xerr=err_air.T[0][b], color=col[b], marker="s", markersize=4,  markerfacecolor="none",
+        #                linestyle="none", label="$DN(0^{+})$")
+        ax1[b].errorbar(np.log(dn_water_zero[0][b]), 0, color=col[b], xerr=inter_std[0][b], marker="^", markersize=4,  markerfacecolor="none", linestyle="none", label="$\ln~DN(0^{-})$")
+
         ax1[b].set_xlabel("$\ln~DN_{i}$")
-
-        ax1[b].legend(loc="lower right", fontsize=8)
-
+        ax1[b].legend(loc="lower right", fontsize=7, frameon=False)
         ax1[b].invert_yaxis()
 
-        ax1[b].text(0.01, 0.87, "(" + string.ascii_lowercase[b] + ")", transform=ax1[b].transAxes, size=11, weight='bold')
+        ax1[b].text(-0, 1.05, "(" + string.ascii_lowercase[b] + ")", transform=ax1[b].transAxes, size=11, weight='bold')
+
+    ax1[0].set_ylabel("z [cm]")
 
     # Figure 2
     pageID_NBK7 = 805  # pageid 805 for Schott NBK7 glass
@@ -400,7 +418,7 @@ if __name__ == "__main__":
 
     if save_file == "y":
 
-        pathname = "calibrationfiles/" + "immersion_factor" + ".h5"
+        pathname = "calibrationfiles/" + "immersion_factor_fluorolog" + ".h5"
         timestr = time.strftime("%Y%m%d", time.localtime(os.stat(im_water[0])[-1]))
 
         if answer.lower() == "c":
