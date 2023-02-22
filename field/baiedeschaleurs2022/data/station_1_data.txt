@@ -1,0 +1,19 @@
+\begin{header}
+Data station 1,
+ice thickness: 80\pm5 cm, ice draft: 20\pm5 cm
+datetime : 23 march 2022, 12:19, Baie des Chaleurs
+0: zero plus
+0.1: zero minus
+\end{header}
+depth	filename
+000.    008_zeroplus.dng
+00.1    009_zerominus.dng
+005.    010_005.dng
+010.    011_010.dng
+015.    012_015.dng
+020.    013_020.dng
+025.    014_025.dng
+030.    015_030.dng
+040.    016_040.dng
+050.    017_050.dng
+060.    018_060.dng

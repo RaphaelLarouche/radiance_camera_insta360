@@ -1,0 +1,26 @@
+meta_dict = {
+	'conditions': {'Dry snow': ['cold_snow'],
+                   'Wet snow': ['melting_snow'],
+                   'Surface scattering layer': ['SSL_white_ice', 'SSL_bare_ice'],
+                   'Drained layer': ['DL_bare_ice'],
+                   'Granular': ['granular_cold'],
+                   'Ponded': ['SSL_ponded', 'IL_ponded_1', 'IL_ponded_2'],
+                   'Cold ice': ['IL_cold_1', 'IL_cold_2', 'IL_cold_3', 'IL_cold_4'],
+                   'Blue ice': ['IL_blue_ice']},
+
+	'cold_snow': {'b_prime': [800],'g': 0.85, 'author': 'Perovich 1990'},
+	'melting_snow': {'b_prime': [160], 'g': 0, 'author' : 'Perovich 1990'},
+	'SSL_white_ice' : {'b_prime': [120], 'g': 0, 'author' : 'Perovich 1990'},
+	'SSL_bare_ice': {'b_prime':[20, 150], 'g': 0.94, 'author':'Light et al. 2008'},
+	'granular_cold': {'b_prime':[12.5], 'g': 0.95, 'author':'Mobley 1998'},
+	'DL_bare_ice': {'b_prime': [2.4, 12], 'g': 0.94, 'author': 'Light et al. 2008'},
+	'SSL_ponded': {'b_prime': [4.2], 'g': 0.94, 'author': 'Briegleb and Light 2007'},
+	'IL_cold_1': {'b_prime': [3, 10], 'g': 0.5, 'author' : 'Haines et al. 1997'},
+	'IL_cold_2': {'b_prime': [4], 'g': 0.98, 'author': 'Mobley et al. 1998' },
+	'IL_cold_3': {'b_prime': [2.5], 'g':0, 'author': 'Perovich 1990'},
+	'IL_cold_4': {'b_prime': [1.5], 'g': 0.98, 'author': 'Pegau and Zaneveld 2000'},
+	'IL_blue_ice': {'b_prime': [1.8], 'g': 0, 'author': 'Perovich 1990'},
+	'IL_ponded_1': {'b_prime': [1.2], 'g': 0, 'author': 'Perovich 1990'},
+	'IL_ponded_2': {'b_prime': [0.5, 1.8], 'g': 0.94, 'author': 'Light et al 2008'},
+	}
+
