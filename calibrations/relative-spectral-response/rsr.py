@@ -10,6 +10,7 @@ import glob
 import time
 import h5py
 import pandas
+import scipy
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
@@ -136,6 +137,9 @@ def stack_roidata(imstack, nbpixel, centroid, exptime=False):
                 roi = val[y - nbpixel // 2:y + nbpixel // 2 + 1, x - nbpixel // 2:x + nbpixel // 2 + 1]
             else:
                 roi = val[y-nbpixel//2:y+nbpixel//2+1, x-nbpixel//2:x+nbpixel//2+1] / exptime[n]
+                #if i == 1:
+                #    plt.figure()
+                #    plt.imshow(roi)
             data["dn_avg"][n, i] = roi.mean()
             data["dn_std"][n, i] = roi.std()
 
@@ -157,6 +161,23 @@ def rsr_statistics(wavelength, rsr):
 
         print("Band no. {0} statistics".format(band))
         print("Effective bw: {0:.4f}, effective wl: {1:.4f}, maximum wl: {2:.4f}". format(eff_bw, eff_wl, max_wl))
+
+
+def rsr_statistics_simps(wavelength, rsr):
+    """
+
+    :param wavelength:
+    :param rsr:
+    :return:
+    """
+    for band in range(rsr.shape[1]):
+        eff_bw = scipy.integrate.simpson(rsr[:, band],  x=wavelength)
+        eff_wl = scipy.integrate.simpson(rsr[:, band] * wavelength, x=wavelength) / eff_bw
+        max_wl = wavelength[np.argmax(rsr[:, band])]
+
+        print("Band no. {0} statistics".format(band))
+        print("Effective bw: {0:.4f}, effective wl: {1:.4f}, maximum wl: {2:.4f}". format(eff_bw, eff_wl, max_wl))
+
 
 
 def relative_uncertainty(relative_unc_x, relative_unc_y):
@@ -223,7 +244,7 @@ def create_hdf5_dataset(path, group, dataname, dat):
     :return:
     """
     datapath = group + "/" + dataname
-    with h5py.File(path) as hf:
+    with h5py.File(path, "a") as hf:
         if datapath in hf:
             d = hf[datapath]  # load the data
             d[...] = dat
