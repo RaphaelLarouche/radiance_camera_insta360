@@ -38,6 +38,7 @@ if __name__ == "__main__":
 
     # Pre-allocation
     plt.style.use("../../figurestyle.mplstyle")
+
     fig1, ax1 = plt.subplots(3, 2, sharey=True, sharex=True)
     fig2, ax2 = plt.figure(figsize=ff.set_size(443.86319, height_ratio=0.45)), []
     ax2.append(fig2.add_subplot(121))
@@ -48,16 +49,16 @@ if __name__ == "__main__":
     geo_water_close = geo_water["lens-close"]["20200730_112353"]
     geo_water_far = geo_water["lens-far"]["20200730_143716"]
 
-    geometric_water_close = format_geometric_calibration(geo_water_close)
-    geometric_water_far = format_geometric_calibration(geo_water_far)
+    geometric_water_close = format_geometric_calibration(geo_water_close)  # Construct geometric objects
+    geometric_water_far = format_geometric_calibration(geo_water_far)   # Construct geometric objects
 
     # Open Air calibration
     geo_air = h5py.File(path_calib + "/calibrationfiles/geometric-calibration-air.h5")
     geo_air_close = geo_air["lens-close"]["20190104_192404"]
     geo_air_far = geo_air["lens-far"]["20190104_214037"]
 
-    geometric_air_close = format_geometric_calibration(geo_air_close)
-    geometric_air_far = format_geometric_calibration(geo_air_far)
+    geometric_air_close = format_geometric_calibration(geo_air_close)   # Construct geometric objects
+    geometric_air_far = format_geometric_calibration(geo_air_far)   # Construct geometric objects
 
     # Radial euclidean distance for interpolation
     r_dws = np.linspace(0, 810 * 1.05, 1000)
