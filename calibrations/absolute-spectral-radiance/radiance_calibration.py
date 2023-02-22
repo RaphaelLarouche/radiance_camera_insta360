@@ -62,7 +62,7 @@ if __name__ == "__main__":
     ff = proccessing.FigureFunctions()
 
     # General path to all data
-    path = process.folder_choice()
+    path = process.folder_choice() + r"\data-i360\calibrations\absolute-radiance\09082020"
     path_i360 = os.path.dirname(os.path.dirname(__file__))
 
     # Choice of camera
@@ -78,11 +78,12 @@ if __name__ == "__main__":
         imlist = process.imageslist(impath)
         imlistdark = process.imageslist_dark(impath, prefix="AMB")
 
-        #geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5", "/lens-close/20190104_192404/")
         geocalib = h5py.File(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5")
         geocalib = geocalib["/lens-close/20190104_192404/"]
 
-        srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200610.h5", "r")
+        #srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200610.h5", "r")
+        #srdata = srdata["lens-close"]
+        srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_fluorolog_20221103.h5", "r")
         srdata = srdata["lens-close"]
 
     elif answer.lower() == "f":
@@ -92,11 +93,12 @@ if __name__ == "__main__":
         imlist = process.imageslist(impath)
         imlistdark = process.imageslist_dark(impath, prefix="AMB")
 
-        #geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5", "/lens-far/20190104_214037/")
         geocalib = h5py.File(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-air.h5")
         geocalib = geocalib["/lens-far/20190104_214037/"]
 
-        srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200710.h5", "r")
+        #srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_20200710.h5", "r")
+        #srdata = srdata["lens-far"]
+        srdata = h5py.File(path_i360 + "/relative-spectral-response/calibrationfiles/rsr_fluorolog_20221103.h5", "r")
         srdata = srdata["lens-far"]
 
     else:
@@ -144,7 +146,13 @@ if __name__ == "__main__":
     dn_avg = np.empty(3)
     dn_std = np.empty(3)
 
-    fig, ax = plt.subplots(1, 3, sharey=True, figsize=ff.set_size())
+    fig, ax = plt.subplots(2, 3, figsize=ff.set_size(height_ratio=0.8))
+    ax_row1 = list(ax[0, :])
+    ax_row2 = list(ax[1, :])
+    ax_row1[0].get_shared_y_axes().join(*ax_row1)
+    ax_row2[0].get_shared_y_axes().join(*ax_row2)
+
+    fig5, ax5 = plt.subplots(1, 3, figsize=ff.set_size(height_ratio=0.5), sharey=True)
 
     for i in range(im_dws.shape[2]):
 
@@ -160,30 +168,88 @@ if __name__ == "__main__":
         print(im[maskdegree].shape)
 
         # Figure
+        # First row
+        # Images
+        imsh = ax[0, i].imshow(im)  # vmin=dn_avg[i]*0.9, vmax=dn_avg[i]*1.1
+        #cb = fig.colorbar(imsh, ax=ax[0, i], orientation="vertical", fraction=0.046, pad=0.04)
+        cb = fig.colorbar(imsh, ax=ax[0, i], orientation="horizontal", fraction=0.046, pad=0.04)
+        cb.set_label("$DN_{i}$ [ADU]", fontsize=9)
+        #cb.ax.set_title("$DN_{i}$", fontsize=10)
+
+        # Sphere
         region = skimage.measure.regionprops(maskdegree.astype(int))
-        draw_circle = plt.Circle((region[0].centroid[1], region[0].centroid[0]), region[0].equivalent_diameter / 2,
-                                 fill=False, linestyle=":")
+        draw_circle = plt.Circle((region[0].centroid[1], region[0].centroid[0]), region[0].equivalent_diameter / 2, fill=False, linestyle=":")
 
-        imsh = ax[i].imshow(im)  # vmin=dn_avg[i]*0.9, vmax=dn_avg[i]*1.1
-
-        ax[i].plot(curr_geo.center[0], curr_geo.center[1], "r+")
-        ax[i].add_artist(draw_circle)
-
-        cb = fig.colorbar(imsh, ax=ax[i], orientation="vertical", fraction=0.046, pad=0.04)
-        cb.ax.set_title("$DN_{i}$", fontsize=10)
+        ax[0, i].plot(curr_geo.center[0], curr_geo.center[1], "r+")
+        ax[0, i].add_artist(draw_circle)
 
         mask_sphere = (im >= dn_avg[i]*0.9) & (im <= dn_avg[i]*1.1)
         region_sphere = skimage.measure.regionprops(mask_sphere.astype(int))
 
-        ax[i].set_xlim((int(region_sphere[0].centroid[1] - imdownsampling), int(region_sphere[0].centroid[1] + imdownsampling)))
-        ax[i].set_ylim((int(region_sphere[0].centroid[0] - imdownsampling), int(region_sphere[0].centroid[0] + imdownsampling)))
+        ax[0, i].set_xlim((int(region_sphere[0].centroid[1] - imdownsampling), int(region_sphere[0].centroid[1] + imdownsampling)))
+        ax[0, i].set_ylim((int(region_sphere[0].centroid[0] - imdownsampling), int(region_sphere[0].centroid[0] + imdownsampling)))
 
-        ax[i].text(-0.1, 1.1, "(" + string.ascii_lowercase[i] + ")", transform=ax[i].transAxes, size=11, weight='bold')
+        ax[0, i].xaxis.set_label_position('top')
+        ax[0, i].xaxis.set_ticks_position('top')
+        if i != 0:
+            ax[0, i].set_yticklabels([])
 
-        ax[i].set_xlabel("$x$ [px]")
+        ax[0, i].text(-0.1, 1.1, "(" + string.ascii_lowercase[i] + ")", transform=ax[0, i].transAxes, size=11, weight='bold')
+        ax[0, i].set_xlabel("$x$ position [px]")
 
-    ax[0].set_ylabel("$y$ [px]")
+        # Figure 5
+        # Images
+        imsh_f5 = ax5[i].imshow(im)  # vmin=dn_avg[i]*0.9, vmax=dn_avg[i]*1.1
+        cb_f5 = fig.colorbar(imsh_f5, ax=ax5[i], orientation="horizontal", fraction=0.046, pad=0.04)
+        cb_f5.set_label("$DN_{i}$ [ADU]", fontsize=9)
 
+        draw_circle_f5 = plt.Circle((region[0].centroid[1], region[0].centroid[0]), region[0].equivalent_diameter / 2,
+                                 fill=False, linestyle=":")
+
+        ax5[i].plot(curr_geo.center[0], curr_geo.center[1], "r+")
+        ax5[i].add_artist(draw_circle_f5)
+
+        ax5[i].set_xlim((int(region_sphere[0].centroid[1] - imdownsampling), int(region_sphere[0].centroid[1] + imdownsampling)))
+        ax5[i].set_ylim((int(region_sphere[0].centroid[0] - imdownsampling), int(region_sphere[0].centroid[0] + imdownsampling)))
+
+        ax5[i].xaxis.set_label_position('top')
+        ax5[i].xaxis.set_ticks_position('top')
+        if i != 0:
+            ax5[i].set_yticklabels([])
+
+        ax5[i].text(-0.1, 1.1, "(" + string.ascii_lowercase[i] + ")", transform=ax5[i].transAxes, size=11, weight='bold')
+        ax5[i].set_xlabel("$x$ position [px]")
+
+        # Second row
+        percent_error = 100*(im - dn_avg[i]) / dn_avg[i]
+        wssize = int((region[0].equivalent_diameter / 2) + 10)
+
+        sub_im_perr = percent_error[int(region[0].centroid[0]) - wssize:int(region[0].centroid[0]) + wssize + 1,
+                                    int(region[0].centroid[1]) - wssize:int(region[0].centroid[1]) + wssize + 1]
+
+        n_centr_y, n_centr_x = sub_im_perr.shape[0]//2, sub_im_perr.shape[1]//2
+
+        imerr = ax[1, i].imshow(sub_im_perr)
+        cb = fig.colorbar(imerr, ax=ax[1, i], orientation="horizontal", fraction=0.046, pad=0.04)
+        cb.set_label("% from average", fontsize=9)
+        #cb.ax.set_title("%", fontsize=10)
+
+        # Sphere
+        ax[1, i].plot(n_centr_x, n_centr_y, "r+")
+        draw_circle_2 = plt.Circle((n_centr_x, n_centr_y), region[0].equivalent_diameter / 2, fill=False, linestyle=":")
+        ax[1, i].add_artist(draw_circle_2)
+
+        ax[1, i].tick_params(axis='x', label1On=False)
+        ax[1, i].tick_params(axis='y', label1On=False)
+        ax[1, i].text(-0.1, 1.1, "(" + string.ascii_lowercase[3 + i] + ")", transform=ax[1, i].transAxes, size=11, weight='bold')
+
+    ax[0, 0].invert_yaxis()
+    ax[0, 0].set_ylabel("$y$ position [px]")
+
+    ax5[0].invert_yaxis()
+    ax5[0].set_ylabel("$y$ position [px]")
+
+    # Calibration coefficient calculation
     coeff = effective_rad / (dn_avg / (exp[0] * gain[0] / 100))
     print(coeff)
 
@@ -199,6 +265,8 @@ if __name__ == "__main__":
     ax1[0].plot(w_s[condwl], spectral_rad_15[condwl], label="1.5 cm")
     ax1[0].plot(w_s[condwl], spectral_rad_35[condwl], label="3.5 cm")
     ax1[0].plot(w_s[condwl], spectral_rad_45[condwl], label="4.5 cm")
+
+    ax1[0].plot(w_s[condwl], rad_planck_norm[condwl], label="Planck $T = 2796$ K")
     ax1[0].plot(effective_lambda, effective_rad, "o")
 
     ax1[0].set_xlabel("wavelength [nm]")
@@ -206,25 +274,30 @@ if __name__ == "__main__":
 
     ax1[0].legend(loc="best")
 
-    ax1[1].plot(w_s[condwl], spectral_rad_norm_15[condwl], label="1.5 cm")
-    ax1[1].plot(w_s[condwl], rad_planck_norm[condwl], label="Planck $T = 2796$ K")
+    ax1[1].plot(w_s[condwl], 100 * (spectral_rad_15[condwl] - spectral_rad_15[condwl])/spectral_rad_15[condwl], label="1.5 cm")
+    ax1[1].plot(w_s[condwl], 100 * (spectral_rad_15[condwl] - spectral_rad_35[condwl]) / spectral_rad_15[condwl], label="3.5 cm")
+    ax1[1].plot(w_s[condwl], 100 * (spectral_rad_15[condwl] - spectral_rad_45[condwl]) / spectral_rad_15[condwl], label="4.5 cm")
 
-    ax1[1].set_xlabel("wavelength [nm]")
-    ax1[1].set_ylabel("normalized radiance [$\mathrm{nm^{-1}}$]")
-
+    ax1[1].set_ylabel("Error [%]")
     ax1[1].legend(loc="best")
 
     # Figure 2
-    fig2, ax2 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7))
+    #fig2, ax2 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7))
+    fig2, ax2 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.6, height_ratio=0.75))
 
     ax2.plot(w_s[condwl], spectral_rad_15[condwl], color="k", label="$L_{source}(\lambda)$")
-    ax2.fill_between(w_s[condwl], spectral_rad_15[condwl] * (1 - spectral_rad_15_unc[condwl]),
-                     spectral_rad_15[condwl] * (1 + spectral_rad_15_unc[condwl]), color="gray", alpha=0.6)
-    ax2.plot(cops_wl, cops_val,  color="k", marker="^", markersize=6, linestyle="None", markeredgecolor="k",
-             markerfacecolor="none", label="C-OPS at 589 nm")
-    ax2.errorbar(effective_lambda, effective_rad, xerr=replica_trapz(wl_rsr, rsr) / 2, color="k", marker="o",
-                 markersize=5, linestyle="None", markeredgecolor="k", markerfacecolor="none",
-                 label="$\overline{L}_{i, source}$")
+    ax2.fill_between(w_s[condwl], spectral_rad_15[condwl] * (1 - spectral_rad_15_unc[condwl]), spectral_rad_15[condwl] * (1 + spectral_rad_15_unc[condwl]), color="gray", alpha=0.6)
+    ax2.plot(cops_wl, cops_val,  color="k", marker="d", markersize=6, linestyle="None", markeredgecolor="k", markerfacecolor="none", label="C-OPS at 589 nm")
+    ax2.errorbar(effective_lambda, effective_rad, xerr=replica_trapz(wl_rsr, rsr) / 2, color="k", marker="o", markersize=5, linestyle="None", markeredgecolor="k", markerfacecolor="none", label="$\overline{L}_{i, source}$")
+
+    #marker = ["o", "s", "^"]
+    #colo = ['#d95f02', '#1b9e77', '#7570b3']
+    #lstyle = ["-", "-.", ":"]
+    #lab = ["red", "green", "blue"]
+    #for n in range(3):
+    #    ax2.errorbar(effective_lambda[n], effective_rad[n], xerr=replica_trapz(wl_rsr, rsr[:, n]) / 2,
+    #                 color=colo[n], marker=marker[n], markersize=7, linestyle="None", markeredgecolor=colo[n],
+    #                 markerfacecolor="none", label="$\overline{{L}}_{{{0}, source}}$".format(lab[n]))
 
     ax2.set_yscale("log")
     ax2.set_xlabel("Wavelength [nm]")
@@ -244,6 +317,8 @@ if __name__ == "__main__":
     fig.tight_layout()
     fig1.tight_layout()
     fig2.tight_layout()
+    fig3.tight_layout()
+    fig5.tight_layout()
 
     # Saving results
     correspond_optic = {"c": "close", "f": "far"}
@@ -259,10 +334,13 @@ if __name__ == "__main__":
     fig2.savefig("figures/spectral_radiance_{}.png".format(correspond_optic[answer.lower()]), format="png", dpi=600,
                  bbox_inches='tight') # png
 
+    fig5.savefig("figures/output_sphere_1row_{}.png".format(correspond_optic[answer.lower()]), format="png", dpi=600,
+                 bbox_inches='tight')  # png
+
     # Saving calibration
     if save_answer == "y":
 
-        filename = "absolute_radiance" + ".h5"
+        filename = "absolute_radiance_fluorolog" + ".h5"
         pathname = "calibrationfiles/" + filename
 
         timestr = time.strftime("%Y%m%d", time.localtime(os.stat(imlist[0])[-1]))
