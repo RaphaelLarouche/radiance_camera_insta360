@@ -5,6 +5,7 @@ Linearity figure and (linear) fit.
 
 # Module importation
 import os
+import h5py
 import string
 import deepdish
 import numpy as np
@@ -55,7 +56,7 @@ def estimators_stde(slope, intercept, x, y):
     return std_slope, std_intercept
 
 
-def plot_linear_regression(ax, x, y, text, postext=(80, 40), oneone=False):
+def plot_linear_regression(ax, x, y, text, ls, postext=(80, 40), oneone=False, color=False):
     """
 
     :param fig:
@@ -71,10 +72,15 @@ def plot_linear_regression(ax, x, y, text, postext=(80, 40), oneone=False):
     _, stde_inter = estimators_stde(slo, inte, x, y)
 
     x_regression = np.linspace(x.min() * 0.8, x.max() * 1.2, 50)
-    ax.plot(x_regression, slo * x_regression + inte, label="linear fit")
+    if color:
+        ax.plot(x_regression, slo * x_regression + inte, color=color, linestyle=ls, label="linear fit")
+    else:
+        ax.plot(x_regression, slo * x_regression + inte, linestyle=ls, label="linear fit")
     if oneone:
         ax.plot(x_regression, x_regression, linestyle="-.", color="black", label="1:1")
-    ax.text(postext[0], postext[1], text.format(slo, stde_slope * 1.96, inte, stde_inter * 1.96, r ** 2), fontsize=6)
+
+    ax.text(postext[0], postext[1], text.format(slo, stde_slope * 1.96, inte, stde_inter * 1.96, r ** 2),
+            transform=ax.transAxes, fontsize=6)
     return ax
 
 
@@ -90,8 +96,15 @@ if __name__ == "__main__":
     plt.style.use("../../figurestyle.mplstyle")
 
     path_i360 = os.path.dirname(os.path.dirname(__file__))
-    filepath_exp = "/Volumes/MYBOOK/data-i360/calibrations/linearity/integration-time/"
-    filepath_iso = "/Volumes/MYBOOK/data-i360/calibrations/linearity/iso-gain/"
+
+    # if Windows
+    volume_path = pp.folder_choice()
+    filepath_exp = volume_path + "data-i360/calibrations/linearity/integration-time/"
+    filepath_iso = volume_path + "data-i360/calibrations/linearity/iso-gain/"
+
+    # if Mac
+    #filepath_exp = "/Volumes/MYBOOK/data-i360/calibrations/linearity/integration-time/"
+    #filepath_iso = "/Volumes/MYBOOK/data-i360/calibrations/linearity/iso-gain/"
 
     while True:
         answer = input("Which lens do you want to analyze? (c/f): ")
@@ -107,7 +120,8 @@ if __name__ == "__main__":
         imlist_iso_bl = pp.imageslist_dark(filepath_iso + "lensclose")
 
         # Geometric calibration
-        geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5", "/lens-close/20200730_112353/")
+        geocalib = h5py.File(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5")
+        geocalib = geocalib["/lens-close/20200730_112353/"]
 
         wim = "close"
 
@@ -120,7 +134,8 @@ if __name__ == "__main__":
         imlist_iso_bl = pp.imageslist_dark(filepath_iso + "lensfar")
 
         # Geometric calibration
-        geocalib = deepdish.io.load(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5", "/lens-far/20200730_143716/")
+        geocalib = h5py.File(path_i360 + "/geometric-calibration/calibrationfiles/geometric-calibration-water.h5")
+        geocalib = geocalib["/lens-far/20200730_143716/"]
 
         wim = "far"
     else:
@@ -201,7 +216,17 @@ if __name__ == "__main__":
     x_iso = np.linspace(iso.min() * 0.8, iso.max() * 1.2, 50)
 
     tx_exp = "$DN_{{i}} = m \cdot t_{{int}} + b$\n$m = ({0:.2f}\pm{1:.2f})$\n$b = ({2:.0f}\pm{3:.0f})$\n$R^{{2}} = {4:.6f}$"
-    tx_iso = "$DN_{{i}} = m \cdot ISO \cdot 0.01 + b$\n$m = ({0:.2f}\pm{1:.2f})$\n$b = ({2:.0f}\pm{3:.0f})$\n$R^{{2}} = {4:.6f}$"
+    tx_iso = "$DN_{{i}} = m \cdot ISO \cdot 0.01 + b$\n$m = ({0:.1f}\pm{1:.1f})$\n$b = ({2:.0f}\pm{3:.0f})$\n$R^{{2}} = {4:.6f}$"
+    tx_iso_green = "$DN_{{i}} = m \cdot ISO \cdot 0.01 + b$\n$m = ({0:.0f}\pm{1:.0f})$\n$b = ({2:.0f}\pm{3:.0f})$\n$R^{{2}} = {4:.6f}$"
+
+    # color prop
+    #prop_cycle = plt.rcParams['axes.prop_cycle']
+    #col = prop_cycle.by_key()['color']
+    col = ['#d95f02', '#1b9e77', '#7570b3']
+
+    # Linestyle
+    ls = ["-", "-.", ":"]
+    ms = ["o", "s", "^"]
 
     for b in range(dn_exp.shape[1]):
 
@@ -212,34 +237,40 @@ if __name__ == "__main__":
         else:
             tint_reg, dn_exp_reg = tintms.copy(), dn_exp[:, b].copy()
 
-        ax1[0, b].errorbar(tintms, dn_exp[:, b], yerr=noise_exp[:, b], linestyle="none", marker=".", label="averaged $DN$")
+        ax1[0, b].errorbar(tintms, dn_exp[:, b], yerr=noise_exp[:, b], color=col[b], linestyle="none", marker=ms[b], markersize=3, label="averaged $DN$")
 
-        # Linear regression
-        plot_linear_regression(ax1[0, b], tint_reg, dn_exp_reg, tx_exp, postext=(80, 40))
+        # Linear regression plot
+        plot_linear_regression(ax1[0, b], tint_reg, dn_exp_reg, tx_exp, ls[b], postext=(0.45, 0.05), color=col[b])
 
         ax1[0, b].set_xscale("log")
         ax1[0, b].set_yscale("log")
 
         ax1[0, b].set_xlabel("exposure time $t_{int}$ [ms]")
-
-        ax1[0, b].text(-0.05, 1.05, "(" + string.ascii_lowercase[b] + ")", transform=ax1[0, b].transAxes, size=11, weight='bold')
+        ax1[0, b].text(0.02, 0.90, "(" + string.ascii_lowercase[b] + ")", transform=ax1[0, b].transAxes, size=11, weight='bold')
 
         # Figure 1 ___ iso
 
-        ax1[1, b].errorbar(iso, dn_iso[:, b], yerr=noise_iso[:, b], linestyle="none", marker=".", label="averaged $DN$")
+        ax1[1, b].errorbar(iso, dn_iso[:, b], yerr=noise_iso[:, b], color=col[b], linestyle="none", marker=ms[b], markersize=3, label="averaged $DN$")
         # Linear regression
-        plot_linear_regression(ax1[1, b], iso[1:], dn_iso[1:, b], tx_iso, postext=(1, 2000))
+        if b == 2:
+            plot_linear_regression(ax1[1, b], iso[1:], dn_iso[1:, b], tx_iso, ls[b], postext=(0.2, 0.5), color=col[b])
+        elif b == 1:
+            plot_linear_regression(ax1[1, b], iso[1:], dn_iso[1:, b], tx_iso_green, ls[b], postext=(0.38, 0.05), color=col[b])
+        else:
+            plot_linear_regression(ax1[1, b], iso[1:], dn_iso[1:, b], tx_iso, ls[b], postext=(0.38, 0.05), color=col[b])
 
         ax1[1, b].set_xscale("log")
         ax1[1, b].set_yscale("log")
 
         ax1[1, b].set_xlabel("$ISO \cdot 0.01$")
+        ax1[1, b].text(0.02, 0.90, "(" + string.ascii_lowercase[3 + b] + ")", transform=ax1[1, b].transAxes, size=11, weight='bold')
 
         # Figure 2
         ax2[0, b].errorbar(tintms / tintms[0], dn_exp[:, b] / dn_exp[0, b], linestyle="none", marker=".", label="averaged $DN$")
-        plot_linear_regression(ax2[0, b], tint_reg / tint_reg[0], dn_exp_reg / dn_exp_reg[0], tx_exp, postext=(10, 1), oneone=True)
+        plot_linear_regression(ax2[0, b], tint_reg / tint_reg[0], dn_exp_reg / dn_exp_reg[0], tx_exp, "-", postext=(0.45, 0.05), oneone=True)
+
         ax2[1, b].errorbar(iso / iso[1], dn_iso[:, b] / dn_iso[1, b], linestyle="none", marker=".", label="averaged $DN$")
-        plot_linear_regression(ax2[1, b], iso / iso[1], dn_iso[:, b] / dn_iso[1, b], tx_iso, postext=(7, 1), oneone=True)
+        plot_linear_regression(ax2[1, b], iso / iso[1], dn_iso[:, b] / dn_iso[1, b], tx_iso, "-", postext=(0.45, 0.05), oneone=True)
 
         ax2[0, b].set_xscale("log")
         ax2[0, b].set_yscale("log")
@@ -254,8 +285,8 @@ if __name__ == "__main__":
         ax2[1, b].set_ylabel("$DN / DN_{ISO_{2}}$")
 
     # Figure 1
-    ax1[0, 0].set_ylabel("$DN_{i}$")
-    ax1[1, 0].set_ylabel("$DN_{i}$")
+    ax1[0, 0].set_ylabel("$DN_{i}$ [ADU]")
+    ax1[1, 0].set_ylabel("$DN_{i}$ [ADU]")
 
     # Saving figures
     fig1.tight_layout()
@@ -264,5 +295,6 @@ if __name__ == "__main__":
     optic_correspondance = {"c": "close", "f": "far"}
 
     fig1.savefig("figures/linearity-fit-{0}.pdf".format(optic_correspondance[answer.lower()]), format="pdf", dpi=600)
+    fig1.savefig("figures/linearity-fit-{0}.png".format(optic_correspondance[answer.lower()]), format="png", dpi=600)
 
     plt.show()

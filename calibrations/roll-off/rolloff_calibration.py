@@ -9,6 +9,7 @@ import os
 import time
 import pandas
 import deepdish
+import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -48,6 +49,25 @@ def plot_rolloff(axe, angles, rolloff, err, mark, cl, lab=""):
     return axe
 
 
+def create_hdf5_dataset(path, group, dataname, dat):
+    """
+
+    :param path:
+    :param group:
+    :param dataname:
+    :param dat:
+
+    :return:
+    """
+    datapath = group + "/" + dataname
+    with h5py.File(path, "a") as hf:
+        if datapath in hf:
+            d = hf[datapath]  # load the data
+            d[...] = dat
+        else:
+            hf.create_dataset(group + "/" + dataname, data=dat)
+
+
 if __name__ == "__main__":
 
     # Input lens to analyzed
@@ -72,21 +92,27 @@ if __name__ == "__main__":
     mdict = {"a": "air", "w": "water"}
     wlens = {"c": "close", "f": "far"}
     medium_name = mdict[answer_m]
-    generalpath = "/Volumes/MYBOOK/data-i360/calibrations/relative-illumination/" + medium_name
+
+    # if Windows:
+    volume_path = process.folder_choice()
+    generalpath = volume_path + "data-i360/calibrations/relative-illumination/"
+
+    # if Mac:
+    # generalpath = "/Volumes/MYBOOK/data-i360/calibrations/relative-illumination/" + medium_name
 
     if answer.lower() == "c":
 
         # Roll-off images
-        path_00 = generalpath + "/lensclose/00"
-        path_90 = generalpath + "/lensclose/90"
+        path_00 = generalpath + medium_name + "/lensclose/00"
+        path_90 = generalpath + medium_name + "/lensclose/90"
 
         rcal = RolloffFunctions("close", medium_name, 1E3, 9E3)
 
     else:
 
         # Roll-off images
-        path_00 = generalpath + "/lensfar/00"
-        path_90 = generalpath + "/lensfar/90"
+        path_00 = generalpath + medium_name + "/lensfar/00"
+        path_90 = generalpath + medium_name + "/lensfar/90"
 
         rcal = RolloffFunctions("far", medium_name, 1E3, 9E3)
 
@@ -166,19 +192,14 @@ if __name__ == "__main__":
         # Plots
         col = next(color)
 
-        plot_rolloff(ax2[band], roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band],
-                     roff_centro_norm["DN_std"][:, band], "o", col, "0˚ azimuth "+lab[band])
-        plot_rolloff(ax2[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band],
-                     roff_centro_90_norm["DN_std"][:, band], "s", col, "90˚ azimuth "+lab[band])
+        plot_rolloff(ax2[band], roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], roff_centro_norm["DN_std"][:, band], "o", col, "0˚ azimuth "+lab[band])
+        plot_rolloff(ax2[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], roff_centro_90_norm["DN_std"][:, band], "s", col, "90˚ azimuth "+lab[band])
 
-        plot_rolloff(ax3[band], roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band],
-                     roff_centro_norm["DN_std"][:, band], "o", "none", "$\phi = $0˚($k=1$ uncertainty)")
-        plot_rolloff(ax3[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band],
-                     roff_centro_90_norm["DN_std"][:, band], "s", "none", "$\phi = $90˚ ($k=1$ uncertainty)")
+        plot_rolloff(ax3[band], roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], roff_centro_norm["DN_std"][:, band], "o", "none", "$\phi = $0˚($k=1$ uncertainty)")
+        plot_rolloff(ax3[band], roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], roff_centro_90_norm["DN_std"][:, band], "s", "none", "$\phi = $90˚ ($k=1$ uncertainty)")
 
         # Figure 2
-        ax2[band].plot(theta, process.rolloff_polynomial(theta, *poptall), color=col, linewidth=1.7, linestyle="-",
-                       label="Polynomial fit")
+        ax2[band].plot(theta, process.rolloff_polynomial(theta, *poptall), color=col, linewidth=1.7, linestyle="-", label="Polynomial fit")
         ax2[band].text(52, 0.91, "$k=1$ standard uncertainty\n$R^{{2}}={0:.5f}$".format(rsquareall), fontsize=9)
 
         # Figure 3
@@ -186,10 +207,8 @@ if __name__ == "__main__":
         ax3[band].text(52, 0.91, "{0}\n$R^{{2}}={1:.5f}$".format(lab[band], rsquareall), fontsize=9)
 
         # Figure 4 -- ROLLOFF PAPER FIGURE
-        p1 = ax4.plot(roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], marker=marker[band], markersize=3,
-                 linestyle="none", markeredgecolor=col, markerfacecolor="none", alpha=0.9)
-        ax4.plot(roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], marker=marker[band],
-                 markersize=3, linestyle="none", markeredgecolor=col, markerfacecolor="none", alpha=0.9)
+        p1 = ax4.plot(roff_centro_norm["a"][:, band], roff_centro_norm["DN_avg"][:, band], marker=marker[band], markersize=3, linestyle="none", markeredgecolor=col, markerfacecolor="none", alpha=0.9)
+        ax4.plot(roff_centro_90_norm["a"][:, band], roff_centro_90_norm["DN_avg"][:, band], marker=marker[band], markersize=3, linestyle="none", markeredgecolor=col, markerfacecolor="none", alpha=0.9)
 
         tfit = "$a_{0}$ = %.2E $a_{2}$ = %.2E $a_{4}$ = %.2E $a_{6}$ = %.2E  $a_{8}$ = %.2E" % tuple(fitresults[band, :])
         p2 = ax4.plot(theta, process.rolloff_polynomial(theta, *poptall), color=col, linestyle=ls[band])  # Fit
@@ -234,17 +253,37 @@ if __name__ == "__main__":
     save_answer = process.save_results()
     timestr = time.strftime("%Y%m%d", time.localtime(os.stat(imlist_00[0])[-2]))
 
+    # Saving figure
+    fig4.savefig("figures/roll-off-{0}-{1}.pdf".format(wlens[answer.lower()], answer_m), format="pdf", dpi=600)
+
+    # Saving data
+
+    if answer.lower() == "c":
+        create_hdf5_dataset("calibrationfiles/roll-off-data-{0}.h5".format(medium_name),
+                                    "lens-close/" + timestr,
+                                    "roll-off-0degree",
+                                    roff_centro_norm)
+        create_hdf5_dataset("calibrationfiles/roll-off-data-{0}.h5".format(medium_name),
+                                    "lens-close/" + timestr,
+                                    "roll-off-90degree",
+                                    roff_centro_90_norm)
+    else:
+        create_hdf5_dataset("calibrationfiles/roll-off-data-{0}.h5".format(medium_name),
+                                    "lens-far/" + timestr,
+                                    "roll-off-0degree",
+                                    roff_centro_norm)
+        create_hdf5_dataset("calibrationfiles/roll-off-data-{0}.h5".format(medium_name),
+                                    "lens-far/" + timestr,
+                                    "roll-off-90degree",
+                                    roff_centro_90_norm)
+
     if save_answer == "y":
 
         pathname = "calibrationfiles/rolloff_{0}.h5".format(answer_m)
-        timestr = time.strftime("%Y%m%d", time.localtime(os.stat(imlist_00[0])[-2]))
 
         if answer.lower() == "c":
             process.create_hdf5_dataset(pathname, "lens-close/" + timestr, "fit-coefficients", fitresults)
         else:
             process.create_hdf5_dataset(pathname, "lens-far/" + timestr, "fit-coefficients", fitresults)
-
-        # Saving figure
-        fig4.savefig("figures/roll-off-{0}-{1}.pdf".format(wlens[answer.lower()], answer_m), format="pdf", dpi=600)
 
     plt.show()

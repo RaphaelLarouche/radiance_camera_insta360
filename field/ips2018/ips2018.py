@@ -6,6 +6,7 @@ IPS2018 on Amundsen icebreaker, cam optic on ice floe.
 # Module importation
 import os
 import glob
+import time
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -27,9 +28,11 @@ if __name__ == "__main__":
     ips_imname.sort()
 
     # # Mask
-    wanted_images = ["006", "007", "008", "009", "010", "011", "013", "014", "015", "017", "018", "019", "020",
-                     "021", "022"]
+    #wanted_images = ["005", "006", "007" , "008", "009", "010", "011", "013", "014"]
+    wanted_images = ["015", "017", "018", "019", "020", "021", "022"]
+    #wanted_images = ["006", "007", "008", "009", "010", "011", "013", "014", "015", "017", "018", "019", "020", "021", "022"]
     #wanted_images = ["006", "007", "008", "009", "010", "011", "013", "014"]
+
     m = [os.path.splitext(os.path.basename(i).split("_")[3])[0] in wanted_images for i in ips_imname]
     depths = np.array([0.1 + i*0.1 for i in range(len(wanted_images))])
 
@@ -48,11 +51,14 @@ if __name__ == "__main__":
 
     for pn, p in enumerate(ips_imname[np.array(m)]):
 
-        im_rad = ImageRadiancei360(p, "water")
+        t0 = time.time()
+
+        im_rad = ImageRadiancei360(p, "water")  # time; approx 2.76 s
 
         # Build radiance map
-        im_rad.get_radiance(dark_metadata=False)
-        im_rad.map_radiance(angular_resolution=1.0)  # 1 deg in angular resolution (zenith and azimuth)
+        im_rad.get_radiance(dark_metadata=False)  # time; approx 2-3 s
+        im_rad.map_radiance(angular_resolution=1.0)  # 1 deg in angular resolution (zenith and azimuth), time; approx 1.76 s
+        print("Time elapsed: {0:.3}".format(time.time() - t0))
 
         # Azimuthal average
         az_average = im_rad.azimuthal_average()
@@ -118,6 +124,8 @@ if __name__ == "__main__":
     ax2[2].plot(Eo["b"], depths, color="b")
 
     ax2[0].invert_yaxis()
+    ax2[0].set_xscale("log")
+
 
     # Figure 3 - absorption coefficient
     fig3, ax3 = plt.subplots(1, 1)

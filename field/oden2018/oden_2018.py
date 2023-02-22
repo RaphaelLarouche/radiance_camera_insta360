@@ -65,18 +65,35 @@ if __name__ == "__main__":
     oden_impath.sort()
 
     im_labels = imagelabel(oden_path + "/ReadMe_python.txt")
+    #wanted_depth = ["zero plus", "zero minus",
+    #                "20 cm (in water)",
+    #                "40 cm", "60 cm", "80 cm", "100 cm", "120 cm", "140 cm", "160 cm", "180 cm", "200 cm"]
+
     wanted_depth = ["zero minus",
                     "20 cm (in water)",
                     "40 cm", "60 cm", "80 cm", "100 cm", "120 cm", "140 cm", "160 cm", "180 cm", "200 cm"]
 
+    dc_conversion = {"zero plus": -0.00001,
+                     "zero minus": 0.0,
+                     "20 cm (in water)": 20.0,
+                     "40 cm": 40.0,
+                     "60 cm": 60.0,
+                     "80 cm": 80.0,
+                     "100 cm": 100.0,
+                     "120 cm": 120.0,
+                     "140 cm": 140.0,
+                     "160 cm": 160.0,
+                     "180 cm": 180.0,
+                     "200 cm": 200.0}
+
     oden_impath_filtered = oden_impath[2:-9:]
-    oden_impath_filtered[-1] = oden_impath[-9]
+    oden_impath_filtered[-1] = oden_impath[-9]  # IMG_101.dng - closer to the ocean-water interface
 
     # Data saving parameters
     if not os.path.isdir(os.path.dirname(__file__) + "/data"):
         os.makedirs(os.path.dirname(__file__) + "/data")
 
-    path_save_rad = os.path.dirname(__file__) + "/data/oden-08312018.h5"
+    path_save_rad = os.path.dirname(__file__) + "/data/oden-08312018-fluo.h5"
     answ = process_im.save_results(text="Do you want to save the radiance angular distributions?")
     cond_save = answ == "y"
 
@@ -85,7 +102,9 @@ if __name__ == "__main__":
     fig1, ax1 = plt.subplots(2, 3, sharex=True, figsize=(8, 4.59))
 
     # Colormap
-    colornormdict = dict(zip(wanted_depth, np.arange(0, 220, 20)))
+    de = np.arange(0, 220, 20).astype(float)
+    de = np.insert(de, 0, -0.0001)
+    colornormdict = dict(zip(wanted_depth, de))
     colo = matplotlib.cm.get_cmap("viridis", len(colornormdict.values()))
     cmit = iter(colo.colors)
 
@@ -101,7 +120,7 @@ if __name__ == "__main__":
 
             print("Evaluation current depth: {}".format(depth))
 
-            if depth == "zero minus":
+            if depth in ["zero minus", "zero plus"]:
                 im_rad = ImageRadiancei360(f, "air")
             else:
                 im_rad = ImageRadiancei360(f, "water")
@@ -127,19 +146,20 @@ if __name__ == "__main__":
                 integration_norm = (integration / np.nanmax(integration)) * 100
 
                 # Ax1 - absolute
-                ax1[0, i].plot(zenith, integration, linewidth=2, color=cl, label=depth)
+                ax1[0, i].plot(zenith, integration, linewidth=1, color=cl, label=depth)
                 ax1[0, i].set_yscale("log")
                 ax1[0, i].set_xlim((20, 160))
                 ax1[0, i].set_ylim((1e-5, 0.1))
 
                 # Ax2 - normalization
-                ax1[1, i].plot(zenith, integration_norm, linewidth=2, color=cl, label=depth)
+                ax1[1, i].plot(zenith, integration_norm, linewidth=1, color=cl, label=depth)
                 ax1[1, i].set_yticks(np.arange(0, 120, 20))
                 ax1[1, i].set_xlabel("Zenith angle [˚]")
 
             # Saving data
             if cond_save:
-                save_radiance_image_hdf5(path_save_rad, depth, im_rad.mappedradiance.copy())
+                name_rad = "{0} cm".format(dc_conversion[depth])
+                save_radiance_image_hdf5(path_save_rad, name_rad, im_rad.mappedradiance.copy())
                 save_radiance_image_hdf5(path_save_rad, "zenith", im_rad.zenith_mesh.copy() * 180 / np.pi)
                 save_radiance_image_hdf5(path_save_rad, "azimuth", im_rad.azimuth_mesh.copy() * 180 / np.pi)
         else:

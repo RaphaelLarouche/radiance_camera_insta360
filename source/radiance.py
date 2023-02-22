@@ -10,11 +10,12 @@ import os
 import glob
 import h5py
 import string
-from numba import jit
 import numpy as np
+import pandas
 from scipy import integrate
 import scipy.interpolate
 from scipy.optimize import curve_fit
+import matplotlib
 import matplotlib.pyplot as plt
 
 # Other module
@@ -25,7 +26,7 @@ from source.geometric_rolloff import MatlabGeometricMengine
 # Classes
 class ImageRadiancei360(ProcessImage):
     """
-    Class to build radiance map from Insta360 ONE images
+    Class to build radiance map from Insta360 ONE images.
     """
 
     def __init__(self, image_path, medium):
@@ -41,30 +42,39 @@ class ImageRadiancei360(ProcessImage):
         self.geometric_close, self.geometric_far = self.open_geometric_calibration()
 
         # Absolute radiance coefficients
-        self.cl_close = self.open_calibrations("lens-close/20200909/cal-coefficients", calibration="absolute")
-        self.cl_far = self.open_calibrations("lens-far/20200909/cal-coefficients", calibration="absolute")
+        #self.cl_close = self.open_calibrations("lens-close/20200909/cal-coefficients", calibration="absolute")
+        self.cl_close = self.open_calibrations("lens-close/20200908/cal-coefficients", calibration="absolute")
+        #self.cl_far = self.open_calibrations("lens-far/20200909/cal-coefficients", calibration="absolute")
+        self.cl_far = self.open_calibrations("lens-far/20200908/cal-coefficients", calibration="absolute")
 
         # Immersion factor
-        self.ifactor_close = self.open_calibrations("lens-close/20200911/immersion", calibration="immersion")
+        #self.ifactor_close = self.open_calibrations("lens-close/20200911/immersion", calibration="immersion")
+        self.ifactor_close = self.open_calibrations("lens-close/20200910/immersion", calibration="immersion")
 
         # Roll-off
         # self.rolloff_close = self.open_rolloff_calibration("lens-close/20190501/fit-coefficients")
         # self.rolloff_far = self.open_rolloff_calibration("lens-close/20190501/fit-coefficients")  # !!!!!
+        #self.rolloff_close = self.open_rolloff_calibration()
+        #self.rolloff_far = self.open_rolloff_calibration()
         self.rolloff_close = self.open_rolloff_calibration()
-        self.rolloff_far = self.open_rolloff_calibration()
+        self.rolloff_far = self.rolloff_close.copy()
 
         # Attributes
         self.im_original, self.metadata = self._readDNG_np(image_path)  # From ProcessImage class
         self.im = self.im_original.copy().astype(float)
 
-        self.rad_c, self.zen_c, self.az_c = self.get_band_angular_coord(self.geometric_close)
+        self.rad_c, self.zen_c, self.az_c = self.get_band_angular_coord(self.geometric_close)  # time; approx 1.08 second
         self.rad_f, self.zen_f, self.az_f = self.get_band_angular_coord(self.geometric_far)
+
+        # Orientation (likely)
+        self.ori = self.get_orientation()
 
         # Radiance map (attributes to be defined later)
         self.zenith_mesh = np.array([])
         self.azimuth_mesh = np.array([])
         self.mappedradiance = np.array([])
         self.mapped_radiance_4pi = np.array([])
+        self.legendre_coefficients = np.zeros(4)
 
     def open_geometric_calibration(self):
         """
@@ -74,24 +84,23 @@ class ImageRadiancei360(ProcessImage):
         p = self.base_path + "/calibrations/geometric-calibration/calibrationfiles/"
 
         if self.medium.lower() == "air":
-
             geo_air = h5py.File(p + "geometric-calibration-air.h5", "r")
-            geocalib_close = geo_air["/lens-close/20190104_192404/"]
-            geocalib_far = geo_air["/lens-far/20190104_214037/"]
+            geocalib_c = geo_air["/lens-close/20190104_192404/"]
+            geocalib_f = geo_air["/lens-far/20190104_214037/"]
 
         elif self.medium.lower() == "water":
             geo_water = h5py.File(p + "geometric-calibration-water.h5")
-            geocalib_close = geo_water["/lens-close/20200730_112353/"]
-            geocalib_far = geo_water["/lens-far/20200730_143716/"]
+            geocalib_c = geo_water["/lens-close/20200730_112353/"]
+            geocalib_f = geo_water["/lens-far/20200730_143716/"]
         else:
             raise ValueError("Invalid name for medium. Should be 'air' or 'water'.")
 
-        # Building dictionary
+        # Build dictionary
         geometric_close = {}
         geometric_far = {}
-        for k in geocalib_close["fp"].keys():
-            geometric_close[k] = MatlabGeometricMengine(geocalib_close["fp"][k], geocalib_close["ierror"][k])
-            geometric_far[k] = MatlabGeometricMengine(geocalib_far["fp"][k], geocalib_far["ierror"][k])
+        for k in geocalib_c["fp"].keys():
+            geometric_close[k] = MatlabGeometricMengine(geocalib_c["fp"][k], geocalib_c["ierror"][k])
+            geometric_far[k] = MatlabGeometricMengine(geocalib_f["fp"][k], geocalib_f["ierror"][k])
 
         return geometric_close, geometric_far
 
@@ -121,14 +130,33 @@ class ImageRadiancei360(ProcessImage):
         """
 
         if calibration.lower() == "absolute":
-            ptf = self.base_path + "/calibrations/absolute-spectral-radiance/calibrationfiles/absolute_radiance.h5"
+            #ptf = self.base_path + "/calibrations/absolute-spectral-radiance/calibrationfiles/absolute_radiance.h5"
+            ptf = self.base_path + "/calibrations/absolute-spectral-radiance/calibrationfiles/absolute_radiance_fluorolog.h5"
         elif calibration.lower() == "immersion":
-            ptf = self.base_path + "/calibrations/immersion-factor/calibrationfiles/immersion_factor.h5"
+            #ptf = self.base_path + "/calibrations/immersion-factor/calibrationfiles/immersion_factor.h5"
+            ptf = self.base_path + "/calibrations/immersion-factor/calibrationfiles/immersion_factor_fluorolog.h5"
         else:
             raise ValueError("Invalid entry calibration. Only value permitted are 'absolute' or 'immersion'.")
         with h5py.File(ptf) as hfrel:
             cal = hfrel[tag][:]
         return cal
+
+    def get_radiance_angular_distribution(self):
+        """
+        High level class to get the radiance values and perform the mapping.
+
+        1. Get radiance using a dark estimate from the CMOS (dark_metadata=False)
+        2. Map radiance into a meshgrid of 1 degree in angular resolution (for zenith and azimuth)
+        3. Perform smoothing and extrapolation by fitting a 3 order Legendre Polynomial to the radiance azimuthal average.
+
+        :return:
+        """
+
+        self.get_radiance(dark_metadata=False)
+        self.map_radiance(angular_resolution=1.0)  # 1 deg in angular resolution (zenith and azimuth)
+
+        if self.medium == "water":
+            self.extrapolation_legendre_polynomials()  # Fit radiance and extract missing values
 
     def get_radiance(self, dark_metadata=True):
         """
@@ -145,7 +173,7 @@ class ImageRadiancei360(ProcessImage):
         if dark_metadata:
             self.dark_correction()
         else:
-            self.dark_correction_image_plane()
+            self.dark_correction_image_plane()  # Dark correction using average of CMOS array outside image circle
 
         # Normalization by integration time and gain
         self.normalisation()
@@ -198,7 +226,7 @@ class ImageRadiancei360(ProcessImage):
                 de[cond_c] = self.dewarpband(im_c[:, :, b], theta_c[cond_c], phi_c[cond_c],
                                              self.rad_c[:, :, b], self.zen_c[:, :, b], self.geometric_close[k])
 
-                # Dewarping camera 2 (c)
+                # Dewarping camera 2 (f)
                 de[cond_f] = self.dewarpband(im_f[:, :, b], theta_f[cond_f], phi_f[cond_f],
                                              self.rad_f[:, :, b], self.zen_f[:, :, b], self.geometric_far[k])
 
@@ -215,7 +243,7 @@ class ImageRadiancei360(ProcessImage):
 
     def dark_correction(self):
         """
-        Method to remove dark noise using the stored value in the tif metadata.
+        Method to remove dark noise using the stored value in the metadata.
         :return:
         """
 
@@ -241,7 +269,7 @@ class ImageRadiancei360(ProcessImage):
 
             for i in range(ima_c_dws.shape[2]):
 
-                # Fov + 15˚
+                # Fov + 20˚
                 cond_c = self.zen_c[:, :, i] >= self.fov + 20
                 cond_f = self.zen_f[:, :, i] >= self.fov + 20
 
@@ -336,6 +364,7 @@ class ImageRadiancei360(ProcessImage):
 
     def dewarp(self, image, theta, phi, which):
         """
+        Depreciated function of dewarping.
 
         :param image:
         :param theta:
@@ -364,7 +393,6 @@ class ImageRadiancei360(ProcessImage):
         return image[ycam, xcam]
 
     @staticmethod
-    #@jit(nopython=True)
     def dewarpband(image, theta, phi, rho, zen, geo):
         """
         Basic dewap process using geometric calibration specific to each spectral band. X and Y position on image
@@ -378,7 +406,7 @@ class ImageRadiancei360(ProcessImage):
         """
 
         # Get rho and zenith values of each pixel
-        cond = zen < 90
+        cond = zen <= 90
         rho = rho[cond]
         zen = zen[cond]
         argso = np.argsort(rho)
@@ -453,7 +481,7 @@ class ImageRadiancei360(ProcessImage):
         else:
             raise ValueError("Build radiance map before any integration.")
 
-    def irradiance(self, zenimin, zenimax, planar=True, interpolation=False):
+    def irradiance(self, zenimin, zenimax, planar=True, extrapolation=False):
         """
         Estimate irradiance from the radiance angular distribution. By default, it calculates the planar irradiance.
         By setting the parameter planar to false, the scalar irradiance is computed. Zenimin = 0˚ and Zenimax = 90˚ gives
@@ -464,16 +492,19 @@ class ImageRadiancei360(ProcessImage):
         :param planar:
         :return:
         """
-        if interpolation:
+        # Get radiance angular distribution
+        if extrapolation:
             radm = self.mapped_radiance_4pi.copy()
         else:
             radm = self.mappedradiance.copy()
+
+        # Integration
         if np.any(radm):
 
             zeni = self.zenith_mesh.copy()
             azi = self.azimuth_mesh.copy()
 
-            mask = (zenimin * np.pi / 180 <= zeni) & (zeni <= zenimax * np.pi / 180)
+            mask = (zenimin * np.pi / 180 <= zeni) & (zeni <= zenimax * np.pi / 180)  # Mask for radiance direction
 
             irr = np.array([])
             for b in range(radm.shape[2]):
@@ -497,9 +528,9 @@ class ImageRadiancei360(ProcessImage):
         else:
             print("No radiance map in regular angular grid found. Method map_radiance() must be done. ")
 
-    def interpolation_3dpoints(self):
+    def extrapolation_3dpoints(self):
         """
-        Not best method....
+        Extrapolation of missing data using scipy.interpolate.griddata fonction and nearest method in 3D coordinates.
         :return:
         """
 
@@ -524,9 +555,46 @@ class ImageRadiancei360(ProcessImage):
             self.mapped_radiance_4pi = rad_interp
             return self.mapped_radiance_4pi
         else:
-            print("No radiance map in regular angular grid found. Method map_radiance() must be done. ")
+            print("No radiance map in regular angular grid found. Method map_radiance() must be done.")
 
-    def interpolation_gaussian_function(self):
+    def extrapolation_rbf(self):
+        """
+        Extrapolation based on radial basis function. Time consuming....
+        :return:
+        """
+        if np.any(self.mappedradiance):
+
+            radiance_map = self.mappedradiance.copy()[::2, ::2]
+            radiance_map_4pi = np.empty(radiance_map.shape)
+            thetas = self.zenith_mesh.copy()
+            phis = self.azimuth_mesh.copy()
+
+            for band in range(3):
+                print(band)
+                f, a = plt.subplots(2, 1)
+
+                radiance_current = radiance_map[:, :, band]
+                a[0].imshow(radiance_current)
+                print(radiance_current.shape)
+                mask_zeros = radiance_current == 0
+
+                # Interpolator
+                interpolat = scipy.interpolate.Rbf(thetas[::2, ::2][~mask_zeros], phis[::2, ::2][~mask_zeros],
+                                                   radiance_current[~mask_zeros], smooth=2.0, epsilon=0.005,
+                                                   function="linear")
+                print(interpolat.epsilon)
+
+                # Interpolation
+                radiance_current[mask_zeros] = interpolat(thetas[::2, ::2][mask_zeros], phis[::2, ::2][mask_zeros])
+                radiance_map_4pi[:, :, band] = radiance_current.copy()
+                a[1].imshow(radiance_current)
+
+        else:
+            print("No radiance map in regular angular grid found. Method map_radiance() must be done.")
+
+        return radiance_map_4pi
+
+    def extrapolation_gaussian_function(self):
         """
         Extrapolation (!) of missing angles (over 4pi sr) using a gaussian fit on the data. See function
         self.general_gaussian().
@@ -544,6 +612,7 @@ class ImageRadiancei360(ProcessImage):
                 az_avg_norm = az_avg[:, b][co] / norm_val
                 zen = self.zenith_mesh[:, 0][co]
 
+                # Curve fitting with a gaussian function
                 popt, pcov = curve_fit(self.general_gaussian, zen, az_avg_norm, p0=[-0.7, 0, 0.1])
 
                 curr_rad = radm[:, :, b].copy()
@@ -558,7 +627,56 @@ class ImageRadiancei360(ProcessImage):
         else:
             print("No radiance map in regular angular grid found. Method map_radiance() must be done. ")
 
-    def legendre_polynomials_extrapolation(self):
+    def extrapolation_legendre_polynomials(self):
+        """
+        Extrapolation of missing angles using Legendre Polynomials to fit the radiance azimuthaly averaged. The fourth
+        order (n=4) is used in this case. We also discard angle below 25 degrees in (zenith) as they are affected by
+        hole effects and camera drastic fall-off in irradiance.
+
+        :return: the mapped radiance over 4pi sr
+        """
+
+        # Check if there is any mapped radiance
+        if np.any(self.mappedradiance):
+            radiance_m = self.mappedradiance.copy()  # Radiance mapped
+            radiance_ex = np.empty(radiance_m.shape)  # New radiance mapped with extrapolated values
+            radiance_az_average = self.azimuthal_average()  # Azimuthal average
+
+            zenith = self.zenith_mesh[:, 0].copy()
+
+            # Loop for each band
+            for b in range(radiance_m.shape[2]):
+
+                # Get not NaN values
+                curr_radiance_az_avg = radiance_az_average[:, b]
+                mask_co = ~np.isnan(curr_radiance_az_avg)  # not NaN values
+                radiance_val = curr_radiance_az_avg[mask_co]
+                zenith_val = zenith[mask_co]
+
+                # Further mask for value over 23 degrees (because of camera drastic drop at the edges)
+                mask_23 = zenith_val >= (25.0 * np.pi/180)
+                radiance_val = radiance_val[mask_23]
+                zenith_val = zenith_val[mask_23]
+
+                # Legendre fit
+                mu = np.cos(zenith_val)  # cos(theta)
+                leg_fit = np.polynomial.legendre.Legendre.fit(mu, radiance_val, 4, domain=[-1., 1.])
+                coeff = leg_fit.convert().coef
+                self.legendre_coefficients = coeff
+
+                # Replace value in new matrix
+                curr_radiance = radiance_m[:, :, b]
+                cond_zero = curr_radiance == 0
+
+                curr_radiance[cond_zero] = np.polynomial.legendre.legval(np.cos(self.zenith_mesh[cond_zero]), coeff)
+
+                radiance_ex[:, :, b] = curr_radiance
+
+            self.mapped_radiance_4pi = radiance_ex
+
+            return self.mapped_radiance_4pi
+        else:
+            print("No radiance map found. Method self.map_radiance() must be done first.")
 
         return
 
@@ -672,9 +790,22 @@ class ImageRadiancei360(ProcessImage):
             raise ValueError("Medium attribute seems to be invalid.")
         return _fov
 
+    def get_orientation(self):
+        """"
+        Kind of obscure Image UserComment in metadata with 6 floats changing at each image (likely pitch, yaw, roll)
+        """
+
+        string_ = str(self.metadata["Image UserComment"]).split(" ")[1]
+        numb_str = string_.split("_")
+        numb = [float(n) for n in numb_str]
+        numb = np.array(numb) * 180 / np.pi
+        #print(numb)
+        return numb
+
     @staticmethod
     def get_band_angular_coord(geometric):
         """
+        Create angular coordinate of camera for each spectral band given the MatlabGeometricMengine passed in entry.
 
         :param geometric:
         :return:
@@ -686,9 +817,11 @@ class ImageRadiancei360(ProcessImage):
 
         for k in geometric.keys():
             r, z, a = geometric[k].angular_coordinates()
-            rad[:, :, dict_cor[k]] = r
-            zen[:, :, dict_cor[k]] = z
-            az[:, :, dict_cor[k]] = a
+            band_number = dict_cor[k]
+
+            rad[:, :, band_number] = r
+            zen[:, :, band_number] = z
+            az[:, :, band_number] = a
 
         return rad, zen, az
 
@@ -774,6 +907,606 @@ class ImageRadiancei360(ProcessImage):
         return np.array([[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]])
 
 
+# Class usable with saved radiance profiles
+class RadClass:
+
+    def __init__(self, data_path="data/oden-08312018_v02.h5", station="station_1", data_type="camera", freeboard=20.0,
+                 wl_dct={480: 2, 540: 1, 600: 0}):
+        """
+
+        :param data_path:
+        :param data_type:
+        :param freeboard:
+        """
+
+        # Save attributes
+        self.data_path = data_path
+        self.data_type = data_type
+        self.freeboard = freeboard  # cm
+        self.station = station
+        self.wl_dct = wl_dct
+
+        # Open data
+        if "oden" in self.data_path:
+            self.zenith_meshgrid, self.azimuth_meshgrid, self.radiance_profile = self.open_radiance_data()
+        elif "baiedeschaleurs" in self.data_path:
+            self.zenith_meshgrid, self.azimuth_meshgrid, self.radiance_profile = self.open_radiance_data(site="bdc")
+            self.zenith_meshgrid *= 180 / np.pi
+            self.azimuth_meshgrid *= 180 / np.pi
+        else:
+            self.zenith_meshgrid, self.azimuth_meshgrid, self.radiance_profile = self.open_radiance_data()
+
+        # Order the depth keys
+        self.ordered_keys, self.dct_depth = self.order_keys()
+        self.keys_from_depth = dict((v, k) for k, v in self.dct_depth.items())
+
+        # Smoothed data
+        if self.data_type == "camera":
+            self.legendre_coeff = self.fit_radiance_curves()
+        elif self.data_type == "simulation":
+            self.legendre_coeff = None
+        else:
+            raise ValueError("Wrong data_type variable value. Should be 'camera' or 'simulation'.")
+
+        # Irradiance data
+        self.ed, self.eu, self.eo, self.edo, self.euo = self.create_irradiance_data()
+
+        # Absorption coefficient
+        self.mu_a = self.calculate_mua()
+
+        # Diffuse attenuation coefficient
+        self.K_d = self.calculate_Kd()
+
+        # Average cosines
+        self.u_d, self.u_u, self.u = self.calculate_average_cosines()
+
+    def open_radiance_data(self, site="oden"):
+        """
+        Function to open data stored in hdf5 file.
+
+        :param path: relative or absolute path to file
+        :return: (zenith meshgrid, azimuth meshgrid, radiance) (dct)
+        """
+
+        radiance_profile = {}
+        with h5py.File(self.data_path) as hf:
+            if site == "bdc":
+                data = hf[self.station]
+            else:
+                data = hf
+            for k in data.keys():
+                if k not in ["azimuth", "zenith"]:
+                    radiance_profile[k] = data[k][:]
+
+            zenith_mesh = data["zenith"][:]
+            azimuth_mesh = data["azimuth"][:]
+
+        print(radiance_profile.keys())
+
+        return zenith_mesh, azimuth_mesh, radiance_profile
+
+    def order_keys(self):
+        """
+        Method to order radiance profile keys.
+        :return:
+        """
+
+        original_keys = self.radiance_profile.keys()
+        de = np.array([])
+        dct_depth = {}
+
+        # Loop
+        for i in original_keys:
+
+            if i == "zero plus":
+                depth = -0.00001
+            elif i == "zero minus":
+                depth = 0.0
+            else:
+                depth = float(i.split(" ")[0])  # get depth in cm
+
+            de = np.append(de, depth)
+            dct_depth[i] = depth
+
+        aso = np.argsort(de)
+        sorted_keys = np.array(list(original_keys))[aso]
+
+        return sorted_keys, dct_depth
+
+    def fit_radiance_curves(self):
+        """
+
+        :return:
+        """
+
+        dct_legendre_coeff = {}
+        leg_deg = 5  # Degree of Legendre Polynomials
+        # LOOP
+        for i, ke in enumerate(self.ordered_keys):
+            rad = self.radiance_profile[ke]
+            radiance_az_average = self.azimuthal_average(rad)  # Azimuthal average
+            zenith = self.zenith_meshgrid[:, 0].copy()
+
+            coeff_array = np.zeros((leg_deg + 1, radiance_az_average.shape[1]))
+
+            dep = self.dct_depth[ke]
+
+            if dep >= self.freeboard:
+
+                # Loop for each band
+                for b in range(radiance_az_average.shape[1]):
+
+                    # Get not NaN values
+                    curr_radiance_az_avg = radiance_az_average[:, b]
+                    mask_co = ~np.isnan(curr_radiance_az_avg)  # not NaN values
+                    radiance_val = curr_radiance_az_avg[mask_co]
+                    zenith_val = zenith[mask_co]
+
+                    # Further mask for value over 25 degrees (because of camera drastic drop at the edges)
+                    mask_deg = zenith_val >= 25.0
+                    radiance_val = radiance_val[mask_deg]
+                    zenith_val = zenith_val[mask_deg]
+
+                    # Legendre fit
+                    coeff_array[:, b] = self.legendre_fit(zenith_val * np.pi/180, radiance_val, leg_deg)
+
+                # Save array
+                dct_legendre_coeff[ke] = coeff_array
+            else:
+                dct_legendre_coeff[ke] = None
+
+        return dct_legendre_coeff
+
+    def create_irradiance_data(self):
+        """
+        Function that output irradiance data from radiance simulations using DORT2002.
+
+        :param zenith_mesh:
+        :param azimuth_mesh:
+        :param radiance_mesh:
+        :return:
+        """
+        ed = np.zeros(self.ordered_keys.shape[0], dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4'), ('depth', 'f4')]))
+        eu, eo = ed.copy(), ed.copy()
+        edo, euo = ed.copy(), ed.copy()
+
+        # LOOP
+        for i, ke in enumerate(self.ordered_keys):
+
+            print(ke)
+            rad = self.radiance_profile[ke].copy()  # radiance angular disttribution
+
+            dep = self.dct_depth[ke]  # current depth
+
+            lc = self.legendre_coeff[ke]  # legendre polynomials
+
+            if np.any(lc):
+                for b in range(rad.shape[2]):
+                    curr_radiance = rad[:, :, b]
+                    cond_zero = curr_radiance == 0
+
+                    curr_radiance[cond_zero] = self.compute_legendre_polynomials(self.zenith_meshgrid[cond_zero]
+                                                                                 * np.pi/180,
+                                                                                 lc[:, b])
+                    rad[:, :, b] = curr_radiance
+
+            ed[i] = tuple(irradiance(self.zenith_meshgrid, self.azimuth_meshgrid, rad, 0, 90)) + (dep, )
+            edo[i] = tuple(irradiance(self.zenith_meshgrid, self.azimuth_meshgrid, rad, 0, 90, planar=False)) + (dep, )
+            eu[i] = tuple(irradiance(self.zenith_meshgrid, self.azimuth_meshgrid, rad, 90, 180)) + (dep, )
+            euo[i] = tuple(irradiance(self.zenith_meshgrid, self.azimuth_meshgrid, rad, 90, 180, planar=False)) + (dep, )
+            eo[i] = tuple(irradiance(self.zenith_meshgrid, self.azimuth_meshgrid, rad, 0, 180, planar=False)) + (dep, )
+
+        return ed, eu, eo, edo, euo
+
+    def calculate_mua(self):
+        """
+        Method to calculate the absorption coefficient [m-1] using the Gershun's law.
+        :return:
+        """
+
+        mask_zero_z = np.where(self.ed["depth"] >= 0)
+
+        net_irr_r = self.ed[mask_zero_z]["r"] - self.eu[mask_zero_z]["r"]
+        net_irr_g = self.ed[mask_zero_z]["g"] - self.eu[mask_zero_z]["g"]
+        net_irr_b = self.ed[mask_zero_z]["b"] - self.eu[mask_zero_z]["b"]
+
+        mu_a = np.zeros(len(net_irr_r), dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4'), ('depth', 'f4')]))
+
+        mu_a["depth"] = self.ed["depth"][mask_zero_z]
+
+        mu_a["r"] = attenuation_coefficient(net_irr_r, self.ed[mask_zero_z]["depth"]) * (net_irr_r / self.eo[mask_zero_z]["r"])
+        mu_a["g"] = attenuation_coefficient(net_irr_g, self.ed[mask_zero_z]["depth"]) * (net_irr_g / self.eo[mask_zero_z]["g"])
+        mu_a["b"] = attenuation_coefficient(net_irr_b, self.ed[mask_zero_z]["depth"]) * (net_irr_b / self.eo[mask_zero_z]["b"])
+
+        return mu_a
+
+    def calculate_Kd(self):
+        """
+        Method to calculate the diffuse attenuation coefficient [m-1].
+        :return:
+        """
+
+        mask_zero_z = np.where(self.ed["depth"] >= 0)
+
+        Kd = np.zeros(mask_zero_z[0].shape[0], dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4'), ('depth', 'f4')]))
+
+        Kd["depth"] = self.ed["depth"][mask_zero_z]
+
+        Kd["r"] = attenuation_coefficient(self.ed[mask_zero_z]["r"], self.ed[mask_zero_z]["depth"])
+        Kd["g"] = attenuation_coefficient(self.ed[mask_zero_z]["g"], self.ed[mask_zero_z]["depth"])
+        Kd["b"] = attenuation_coefficient(self.ed[mask_zero_z]["b"], self.ed[mask_zero_z]["depth"])
+
+        return Kd
+
+    def calculate_average_cosines(self):
+        """
+        Method to calculate the average cosines.
+        :return:
+        """
+
+        if "baiedeschaleurs" in self.data_path:
+            mask_zero_z = np.where(self.ed["depth"] >= self.freeboard)
+        else:
+            mask_zero_z = np.where(self.ed["depth"] >= 0)
+
+        mu_d = np.zeros(mask_zero_z[0].shape[0], dtype=([('r', 'f4'), ('g', 'f4'), ('b', 'f4'), ('depth', 'f4')]))
+        mu_u = mu_d.copy()
+        mu = mu_d.copy()
+
+        band_name = ["r", "g", "b"]
+        for b in band_name:
+            mu_d[b] = self.ed[mask_zero_z][b] / self.edo[mask_zero_z][b]
+            mu_u[b] = self.eu[mask_zero_z][b] / self.euo[mask_zero_z][b]
+            mu[b] = (self.ed[mask_zero_z][b] - self.eu[mask_zero_z][b]) / self.eo[mask_zero_z][b]
+
+        mu_d["depth"] = self.ed["depth"][mask_zero_z]
+        mu_u["depth"] = self.ed["depth"][mask_zero_z]
+        mu["depth"] = self.ed["depth"][mask_zero_z]
+
+        return mu_d, mu_u, mu
+
+    def get_radiance_avg_at_depth_wl(self, depth, wl, smooth=False):
+        """
+
+        :param depth:
+        :param wl:
+        :return:
+        """
+
+        zen = self.zenith_meshgrid[:, 0]
+        #wl_dct = {484: 2, 544: 1, 603: 0}
+        #wl_dct = {480: 2, 540: 1, 600: 0}
+        lc = self.legendre_coeff[self.keys_from_depth[depth]]
+        if smooth and np.any(lc):
+            radiance = self.compute_legendre_polynomials(zen * np.pi / 180, lc[:, self.wl_dct[wl]])
+        else:
+            rad_az_avg = self.azimuthal_average(self.radiance_profile[self.keys_from_depth[depth]])
+            radiance = rad_az_avg[:, self.wl_dct[wl]]
+
+        return zen, radiance
+
+    def get_radiance_dist_at_depth_wl(self, depth, wl):
+        """
+
+        :param depth:
+        :param wl:
+        :return:
+        """
+        #wl_dct = {484: 2, 544: 1, 603: 0}
+        #wl_dct = {480: 2, 540: 1, 600: 0}
+        rad_depth = self.radiance_profile[self.keys_from_depth[depth]].copy()
+        return rad_depth[:, :, self.wl_dct[wl]]
+
+    def get_aops_average(self, min_depth:float, max_depth:float, aops_key="Kd", verbose=True):
+        """
+        Method to average an apparent optical property between two depth values.
+        :param min_depth: min depth value - float
+        :param max_depth: max depth value - float
+        :param aops_key:
+        :return:
+        """
+        if aops_key == "Kd":
+            aops = self.K_d.copy()
+        elif aops_key == "uu":
+            aops = self.u_u.copy()
+        elif aops_key == "ud":
+            aops = self.u_d.copy()
+        else:
+            raise ValueError("Invalid name for AOPs.")
+
+        depths = aops["depth"]  # depths array
+        mask_depths = (min_depth <= depths) & (depths <= max_depth)
+
+        avg_r = aops["r"][mask_depths].mean()
+        avg_g = aops["g"][mask_depths].mean()
+        avg_b = aops["b"][mask_depths].mean()
+
+        if verbose:
+            print(f"AOP - {aops_key} - {min_depth} cm <= depths <= {max_depth} cm"
+                  f"\nAverage blue = {avg_b:.5f}"
+                  f"\nAverage green = {avg_g:.5f}"
+                  f"\nAverage red = {avg_r:.5f}")
+        else:
+            return (avg_r, avg_g, avg_b)
+
+    def show_smoothed_radiance_curves(self, raw=True):
+        """
+        Method that shows smoothed radiance curves
+        :param raw:
+        :return:
+        """
+
+        if self.legendre_coeff:
+            fig, ax = plt.subplots(1, 3, sharey=True, figsize=(6.4, 3.3))
+
+            # Angular variables
+            zen = np.arange(0, 181, 1)  # 1 deg angular resolution
+            zen_rad = zen * np.pi / 180
+
+            depth_color = self.dct_depth.values()
+            colo_reds = self.build_cmap_2cond_color("Reds", depth_color)
+            colo_greens = self.build_cmap_2cond_color("Greens", depth_color)
+            colo_blues = self.build_cmap_2cond_color("Blues", depth_color)
+
+            cm_it_r = iter(colo_reds(np.arange(0, colo_reds.N)))
+            cm_it_g = iter(colo_greens(np.arange(0, colo_greens.N)))
+            cm_it_b = iter(colo_blues(np.arange(0, colo_blues.N)))
+
+            for ke in self.ordered_keys:
+
+                lc = self.legendre_coeff[ke]
+
+                # Color increment
+                col_r = next(cm_it_r)
+                col_g = next(cm_it_g)
+                col_b = next(cm_it_b)
+
+                for b in range(3):
+
+                    if b == 0:
+                        curr_col = col_r
+                    elif b == 1:
+                        curr_col = col_g
+                    else:
+                        curr_col = col_b
+
+                    if raw:
+                        rad_az_avg = self.azimuthal_average(self.radiance_profile[ke])
+                        ax[b].plot(zen, rad_az_avg[:, b], color=curr_col, linestyle="-")
+
+                    if np.any(lc):
+                        radi_fit = self.compute_legendre_polynomials(zen_rad, lc[:, b])
+                        ax[b].plot(zen, radi_fit, color=curr_col, linestyle="--", linewidth=0.9)
+
+            ax[0].set_yscale("log")
+
+            ax[0].set_xlabel("Zenith [˚]")
+            ax[1].set_xlabel("Zenith [˚]")
+            ax[2].set_xlabel("Zenith [˚]")
+            ax[0].set_ylabel("$\overline{L}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
+
+            fig.tight_layout()
+        else:
+            print("Smoothed radiance curves not calculated.")
+
+    def show_irradiance_curves(self):
+        """
+
+        :param irradiance_dort:
+        :param irradiance_meas:
+        :return:
+        """
+
+        fig, ax = plt.subplots(1, 3, sharey=True, sharex=True, figsize=(6.136, 3.784))
+
+        band_name = ["r", "g", "b"]
+        lstyle = ["-", "--", ":", "-."]
+
+        for b, band in enumerate(band_name):
+
+            ax[b].plot(self.ed[band], self.ed["depth"], linewidth=0.8, color="#a6cee3", linestyle=lstyle[0], label="$E_{d}$")
+            ax[b].plot(self.eu[band], self.eu["depth"], linewidth=0.8, color="#1f78b4", linestyle=lstyle[0], label="$E_{u}$")
+            ax[b].plot(self.eo[band], self.eo["depth"], linewidth=0.8, color="#b2df8a", linestyle=lstyle[0], label="$E_{0}$")
+
+            ax[b].set_xscale("log")
+            ax[b].invert_yaxis()
+
+            ax[b].set_xlabel("$E~[\mathrm{W \cdot m^{-2} \cdot nm^{-1}}]$")
+            ax[b].text(-0.05, 1.05, "(" + string.ascii_lowercase[b] + ")", transform=ax[b].transAxes, size=11,
+                           weight='bold')
+            ax[b].legend(loc="best", frameon=False, fontsize=6)
+
+        ax[0].set_ylabel("Depth [cm]")
+        fig.tight_layout()
+
+        return fig, ax
+
+    def show_mean_cosines(self):
+        """
+        Method to plot mean cosines AOPs.
+        :return:
+        """
+
+        fig, ax = plt.subplots(1, 3, sharey=True, figsize=(6.136, 3.784))
+
+        band_name = ["r", "g", "b"]
+        lstyle = ["-", "--", ":", "-."]
+        cl = ["#a6cee3", "#1f78b4", "#b2df8a"]
+        xlabel = ["$\mu_{d}$", "$\mu_{u}$", "$\mu$"]
+        leg_lab = ["red band: 603 nm", "green band: 544 nm", "blue band: 484 nm"]
+
+        if "oden" in self.data_path:
+            mask_zero_z = np.where(self.ed["depth"] >= 0)
+        else:
+            mask_zero_z = np.where(self.ed["depth"] >= self.freeboard)
+
+        for b, band in enumerate(band_name):
+
+            mu_d = self.ed[mask_zero_z][band] / self.edo[mask_zero_z][band]
+            mu_u = self.eu[mask_zero_z][band] / self.euo[mask_zero_z][band]
+            mu = (self.ed[mask_zero_z][band] - self.eu[mask_zero_z][band]) / self.eo[mask_zero_z][band]
+
+            ax[0].plot(mu_d, self.ed[mask_zero_z]["depth"], linewidth=0.8, color=cl[b], linestyle=lstyle[b], label=leg_lab[b])
+            ax[1].plot(mu_u, self.eu[mask_zero_z]["depth"], linewidth=0.8, color=cl[b], linestyle=lstyle[b], label=leg_lab[b])
+            ax[2].plot(mu, self.eo[mask_zero_z]["depth"], linewidth=0.8, color=cl[b], linestyle=lstyle[b], label=leg_lab[b])
+
+            ax[b].set_xlabel(xlabel[b])
+
+            ax[b].text(-0.05, 1.05, "(" + string.ascii_lowercase[b] + ")", transform=ax[b].transAxes, size=11, weight='bold')
+
+        ax[0].legend(loc="best", frameon=False, fontsize=6)
+        ax[1].legend(loc="best", frameon=False, fontsize=6)
+        ax[2].legend(loc="best", frameon=False, fontsize=6)
+
+        ax[0].invert_yaxis()
+
+        ax[0].set_ylabel("Depth [cm]")
+        fig.suptitle(self.station)
+        fig.tight_layout()
+
+        return fig, ax
+
+    def show_absorption_coefficient(self):
+        """
+
+        :return:
+        """
+
+        fig, ax = plt.subplots(1, 3, sharey=True, figsize=(6.136, 3.784))
+
+        band_name = ["r", "g", "b"]
+        lstyle = ["-", "--", ":", "-."]
+        cl = ["#a6cee3", "#1f78b4", "#b2df8a"]
+        xlabel = ["$E_{net}~[\mathrm{W \cdot m^{-2} \cdot nm^{-1}}]$",
+                  "$k_{d}~\mathrm{[m^{-1}]}$",
+                  "$a~\mathrm{[m^{-1}]}$"]
+        leg_lab = ["red band: 630 nm", "green band: 544 nm", "blue band: 484 nm"]
+
+        if "oden" in self.data_path:
+            mask_zero_z = np.where(self.ed["depth"] >= 0)
+        else:
+            mask_zero_z = np.where(self.ed["depth"] >= self.freeboard)
+
+        for b, band in enumerate(band_name):
+
+            ednet = self.ed[mask_zero_z][band] - self.eu[mask_zero_z][band]
+            kd = attenuation_coefficient(self.ed[mask_zero_z][band], self.ed[mask_zero_z]["depth"])
+
+            ax[0].plot(ednet, self.ed[mask_zero_z]["depth"], linewidth=0.8, color=cl[b], linestyle=lstyle[b], label=leg_lab[b])
+            ax[1].plot(kd, self.eu[mask_zero_z]["depth"], linewidth=0.8, color=cl[b], linestyle=lstyle[b], label=leg_lab[b])
+            ax[2].plot(self.mu_a[mask_zero_z][band], self.mu_a[mask_zero_z]["depth"], linewidth=0.8, color=cl[b], linestyle=lstyle[b], label=leg_lab[b])
+
+            ax[b].set_xlabel(xlabel[b])
+
+            ax[b].text(-0.05, 1.05, "(" + string.ascii_lowercase[b] + ")", transform=ax[b].transAxes, size=11, weight='bold')
+
+        ax[0].legend(loc="best", frameon=False, fontsize=6)
+        ax[1].legend(loc="best", frameon=False, fontsize=6)
+        ax[2].legend(loc="best", frameon=False, fontsize=6)
+
+        ax[0].set_xscale("log")
+        #ax[1].set_xscale("log")
+        #ax[2].set_xscale("log")
+
+        ax[0].invert_yaxis()
+
+        ax[0].set_ylabel("Depth [cm]")
+        fig.suptitle(self.station)
+        fig.tight_layout()
+
+        return fig, ax
+
+    def save_radiance_curves_csv(self, path_filename="data/r-curves-oden-08312018.csv"):
+        """
+        Function that create a panda Dataframe with the radiance curves and save it to csv file.
+        :return:
+        """
+
+        zenith = self.zenith_meshgrid[:, 0].copy()
+
+        df_dc = pandas.DataFrame({"Zenith angle (°)": zenith})
+        band_wl = {0: "603 nm", 1: "544 nm", 2: "484 nm"}
+
+        str_pd = "Radiance {0}, {1} cm, {2} (W sr-1 m-2 nm-1)"
+
+        for ke in self.ordered_keys:
+
+            # Radiance raw
+            radi_az_avg = self.azimuthal_average(self.radiance_profile[ke])
+
+            # Radiance smoothed
+            lc = self.legendre_coeff[ke]
+
+            for b in [2, 1, 0]:
+
+                radi_az_avg_raw = radi_az_avg[:, b]
+                str_raw = str_pd.format("raw", self.dct_depth[ke], band_wl[b])
+
+                if np.any(lc):
+                    radi_az_avg_fit = self.compute_legendre_polynomials(zenith * np.pi/180, lc[:, b])
+                    str_fit = str_pd.format("fit", self.dct_depth[ke], band_wl[b])
+                    df_current = pandas.DataFrame({str_raw: radi_az_avg_raw,
+                                                   str_fit: radi_az_avg_fit})
+                else:
+                    df_current = pandas.DataFrame({str_raw: radi_az_avg_raw})
+
+                df_dc = pandas.concat([df_dc, df_current], axis=1)
+
+        # Save to csv
+        df_dc.to_csv(path_filename, sep=',')
+
+        return df_dc
+
+    @staticmethod
+    def build_cmap_2cond_color(cmap_name, d):
+        """
+
+        :param cmap_name:
+        :return:
+        """
+
+        CMA = matplotlib.cm.get_cmap(cmap_name, len(d) + 1)
+        colooor = CMA(np.arange(1, CMA.N))
+        custom_cmap = matplotlib.colors.ListedColormap(colooor[::-1])
+        return custom_cmap
+
+    @staticmethod
+    def legendre_fit(theta, values, deg):
+        """
+
+        :param zenith: zenith angle (in radians)
+        :param radiance_zenith: radiance as a function of zenith angle (W sr-1 m-2 nm-1)
+        :return:
+        """
+
+        mu = np.cos(theta)  # cos(theta)
+        leg_fit = np.polynomial.legendre.Legendre.fit(mu, values, deg, domain=[-1., 1.])
+        return leg_fit.convert().coef
+
+    @staticmethod
+    def compute_legendre_polynomials(theta, coeff):
+        """
+
+        :param zenith:
+        :param coeff:
+        :return:
+        """
+
+        return np.polynomial.legendre.legval(np.cos(theta), coeff)
+
+    @staticmethod
+    def azimuthal_average(rad):
+        """
+        Average of radiance in azimuth direction.
+
+        :return:
+        """
+        condzero = rad == 0
+        rad2 = rad.copy()
+        rad2[condzero] = np.nan
+        return np.nanmean(rad2, axis=1)
+
+
 # Other function accessible
 def irradiance(zeni, azi, radm, zenimin, zenimax, planar=True):
     """
@@ -802,7 +1535,9 @@ def irradiance(zeni, azi, radm, zenimin, zenimax, planar=True):
         else:
             integrand = radm[:, :, b][mask] * np.sin(zeni_rad[mask])
 
+        # Azimuthal integration
         azimuth_inte = integrate.simps(integrand.reshape((-1, azi_rad.shape[1])), azi_rad[mask].reshape((-1, azi_rad.shape[1])), axis=1)
+        # Zenithal integration
         e = integrate.simps(azimuth_inte, zeni_rad[mask].reshape((-1, azi_rad.shape[1]))[:, 0], axis=0)
 
         irr = np.append(irr, e)
@@ -833,27 +1568,102 @@ def azimuthal_average(rad):
     return np.nanmean(rad2, axis=1)
 
 
+def fit_f1f3(th, a1, a2, a3, eta1, eta2, eta3, mu1, mu2, mu3):
+    """
+    $ BEST FUNCTION
+    :param th:
+    :param epsilon:
+    :param eta:
+    :return:
+    """
+    mu = np.cos(th * np.pi/180)
+    f1 = mu1 / ((1 - (a1 * mu)) ** eta1)
+    f2 = mu2 / ((1 - (a2 * mu)) ** eta2)
+    f3 = mu3 / ((1 - (a3 * mu)) ** eta3)
+    return f1 + f2 + f3
+
+
+def fit_f1f2(th, a1, a2, eta1, eta2, mu1, mu2):
+    """
+    $ BEST FUNCTION
+    :param th:
+    :param epsilon:
+    :param eta:
+    :return:
+    """
+    mu = np.cos(th * np.pi/180)
+    f1 = mu1 / ((1 - (a1 * mu)) ** eta1)
+    f2 = mu2 / ((1 - (a2 * mu)) ** eta2)
+    return f1 + f2
+
+
+def fit_f1(th, a1, eta1, mu1):
+    """
+
+    :param th:
+    :param epsilon:
+    :param eta:
+    :return:
+    """
+    mu = np.cos(th * np.pi/180)
+    f1 = mu1 / ((1 - (a1 * mu)) ** eta1)
+    return f1
+
+
 if __name__ == "__main__":
 
     # Test
-    oden_data_list = glob.glob("/Volumes/MYBOOK/data-i360/field/oden-08312018/IMG*.dng")
-    im_rad = ImageRadiancei360(oden_data_list[10], "water")
+    oden_data_list = glob.glob("D:/data-i360/field/oden-08312018/IMG*.dng")
+    im_rad = ImageRadiancei360(oden_data_list[12], "water")
 
-    im_rad.get_radiance(dark_metadata=True)
-    im_rad.map_radiance(angular_resolution=1.0)
+    #im_rad.get_radiance(dark_metadata=True)
+    #im_rad.map_radiance(angular_resolution=1.0)
+    im_rad.get_radiance_angular_distribution()
     im_rad.show_mapped_radiance()
 
     # Interpolation for the missing angles
-    A = im_rad.interpolation_3dpoints()
-    B = im_rad.interpolation_gaussian_function()
+    B = im_rad.extrapolation_gaussian_function()
+    C = im_rad.extrapolation_legendre_polynomials()
+
+    # Raw azimuthal average
+    D = im_rad.azimuthal_average()
+    angl = np.arange(0, 181, 1)
+    mu = np.cos(angl * np.pi/180)
+    maskzero = np.logical_not(np.isnan(D))
+
+    # Legendre fit
+    legfit = np.polynomial.legendre.Legendre.fit(mu[maskzero[:, 0]][3:], D[maskzero[:, 0], 0][3:], 3, domain=[-1.,  1.])
+
+    # Tyler equation
+    lnorm = D[maskzero[:, 0], 0]/D[maskzero[:, 0], 0][71]
+    t = angl[maskzero[:, 0]]
+    res_tyler_mod = curve_fit(fit_f1, t[5:], lnorm[5:], maxfev=10000)
+
+    # plot methods
+    fig1, ax1 = plt.subplots(1, 1)
+
+    ax1.plot(angl, D[:, 0], linewidth=1.5, label="Raw")
+    ax1.plot(np.arange(0, 181, 1), B[:, :, 0].mean(axis=1), label="Gaussian extrapolation")
+    ax1.plot(np.arange(0, 181, 1), C[:, :, 0].mean(axis=1), label="Legendre extrapolation")
+
+    ax1.legend(loc="best")
+
+    fig2, ax2 = plt.subplots(1, 1)
+
+    ax2.plot(angl, D[:, 0], linewidth=1.5, label="Raw")
+    ax2.plot(angl, fit_f1(angl, *res_tyler_mod[0]) * D[maskzero[:, 0], 0][71], label="Tyler function")
+    ax2.plot(np.arccos(legfit.linspace()[0]) * 180/np.pi, legfit.linspace()[1], label="Legendre polynomials")
+
+    ax2.legend(loc="best")
+    ax2.set_xlabel(r"$\theta$ [°]")
+    ax2.set_ylabel("$\overline{L}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")
+
+    fig2.tight_layout()
 
     # Irradiances
-    ed = im_rad.irradiance(0, 90, planar=True)
+    ed = im_rad.irradiance(0, 90, planar=True, extrapolation=True)
     eu = im_rad.irradiance(90, 180)
     e0 = im_rad.irradiance(0, 180, planar=False)
-
-    plt.figure()
-    plt.imshow(A[:, :, 1])
 
     plt.figure()
     plt.imshow(B[:, :, 1])

@@ -179,6 +179,7 @@ def compute_results_dort(p, r, wdepth):
 
     return rad_dist, zen_mesh, az_mesh
 
+
 if __name__ == "__main__":
 
     # Object ProcessImage

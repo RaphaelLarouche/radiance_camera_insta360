@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Random classes.
+Classes and functions re-use by multiple codes.
 """
 
 # Module importation
@@ -12,6 +12,7 @@ import glob
 import pandas
 import exifread
 import numpy as np
+from numba import jit
 import tkinter as tk
 from tkinter import filedialog
 import matplotlib.pyplot as plt
@@ -366,6 +367,7 @@ class ProcessImage:
         return a1 * x + a2 * x ** 2 + a3 * x ** 3 + a4 * x ** 4
 
     @staticmethod
+    @jit(nopython=True)
     def rolloff_polynomial(x, a0, a2, a4, a6, a8):
         """
         Polynomial fit with even coefficients (degree 0 to 8) for roll-off fitting.
@@ -379,6 +381,34 @@ class ProcessImage:
         :return:
         """
         return a0 + a2*x**2 + a4*x**4 + a6*x**6 + a8*x**8
+
+    @staticmethod
+    def rsquare(func, popt, covmat, x, y):
+        """
+
+        :param func:
+        :param popt:
+        :param covmat:
+        :param x:
+        :param y:
+        :return:
+        """
+        # Std of coefficient parameters
+        perr = np.sqrt(np.diag(covmat))
+
+        # Rsquare
+        residuals = y - func(x, *popt)
+        rsquared = 1 - np.sum(residuals ** 2) / np.sum((y - np.mean(y)) ** 2)
+
+        # Display results
+        print("rsquared = {0:.8f}".format(rsquared))
+        res = ""
+        param = func.__code__.co_varnames
+        for i in zip(param[1:], popt, perr):
+            res += "%s: %.4E (%.4E)\n" % i
+        print(res)
+
+        return rsquared, perr
 
     @staticmethod
     def detect_corners(img, vis=False):
@@ -462,7 +492,7 @@ class ProcessImage:
         :return: ...
         """
         datapath = group + "/" + dataname
-        with h5py.File(path) as hf:
+        with h5py.File(path, "a") as hf:
             if datapath in hf:
                 d = hf[datapath]  # load the data
                 d[...] = dat
@@ -594,8 +624,9 @@ class FlameSpectrometer:
         count_s_calib_unc = self.multiplication_division_unc_propagation((count_s_unc, self.spectro_calibration_unc))
         c_cal_cops_unc = self.multiplication_division_unc_propagation((self.cops_unc, count_s_calib_unc[argwl]))
 
-        return w_s, count_s_calib * c_cal_cops, self.multiplication_division_unc_propagation(
-            (count_s_calib_unc, c_cal_cops_unc)), copswl[copsfile], cops_data["DN_avg"][copsfile]
+        return w_s, count_s_calib * c_cal_cops, \
+               self.multiplication_division_unc_propagation((count_s_calib_unc, c_cal_cops_unc)), \
+               copswl[copsfile], cops_data["DN_avg"][copsfile]
 
     @staticmethod
     def create_cops_radiance(path, wl_list):

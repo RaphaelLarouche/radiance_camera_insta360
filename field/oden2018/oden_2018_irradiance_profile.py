@@ -106,6 +106,47 @@ def forward_gradient_dxdy(depths, values):
     return nd, df
 
 
+def graph_dort_vs_measurements(irradiance_dort, irradiance_meas):
+    """
+
+    :param irradiance_dort:
+    :param irradiance_meas:
+    :return:
+    """
+
+    i_d, i_u, i_o = irradiance_meas
+    i_d_dort, i_u_dort, i_o_dort = irradiance_dort
+
+    fig, ax = plt.subplots(1, 3, sharey=True, sharex=True, figsize=ff.set_size(subplots=(1, 3)))
+
+    band_name = ["r", "g", "b"]
+
+    for b in range(3):
+
+        ax[b].plot(i_d[band_name[b]], depths, linewidth=0.8, color="#a6cee3", linestyle="-", label="$E_{d}$")
+        ax[b].plot(i_u[band_name[b]], depths, linewidth=0.8, color="#1f78b4", linestyle="-", label="$E_{u}$")
+        ax[b].plot(i_o[band_name[b]], depths, linewidth=0.8, color="#b2df8a", linestyle="-", label="$E_{0}$")
+
+        ax[b].plot(i_d_dort[band_name[b]], depths, linewidth=0.8, color="#a6cee3", linestyle="--")
+        ax[b].plot(i_u_dort[band_name[b]], depths, linewidth=0.8, color="#1f78b4", linestyle="--")
+        ax[b].plot(i_o_dort[band_name[b]], depths, linewidth=0.8, color="#b2df8a", linestyle="--")
+
+        ax[b].set_xscale("log")
+        ax[b].invert_yaxis()
+
+        ax[b].set_xlabel("$E~[\mathrm{W \cdot m^{-2} \cdot nm^{-1}}]$")
+        ax[b].text(-0.05, 1.05, "(" + string.ascii_lowercase[b] + ")", transform=ax[b].transAxes, size=11, weight='bold')
+
+        ax[b].legend(loc="best", frameon=False, fontsize=6)
+        ax[b].annotate("- : measurements\n-- : simulations", (0.04, 0.7), xycoords="axes fraction", fontsize=6)
+
+    ax[0].set_ylabel("Depth [cm]")
+
+    fig.tight_layout()
+
+    return fig, ax
+
+
 if __name__ == "__main__":
 
     # Object FigureFunction
@@ -159,7 +200,7 @@ if __name__ == "__main__":
         cl = next(cmit)
         
         #azimuthal_average = r.azimuthal_average(rad[k])
-        azimuthal_average = r.azimuthal_average(rad_interpo)
+        azimuthal_average = r.azimuthal_average(rad_interpo)  # Azimuthal average
 
         axrad[0].plot(zen[:, 0], azimuthal_average[:, 0], linewidth=2, color=cl, label=k)
         axrad[1].plot(zen[:, 0], azimuthal_average[:, 1], linewidth=2, color=cl, label=k)
@@ -175,6 +216,13 @@ if __name__ == "__main__":
     # Using forward differentiation
     nd, grad_g = forward_gradient_dxdy(depths, Ed["g"] - Eu["g"])
     abs_g = -1 * grad_g * 100 * 1/np.interp(nd, depths, Eo["g"])
+
+    nd, grad_r = forward_gradient_dxdy(depths, Ed["r"] - Eu["r"])
+    abs_r = -1 * grad_r * 100 * 1 / np.interp(nd, depths, Eo["r"])
+
+    nd, grad_b = forward_gradient_dxdy(depths, Ed["b"] - Eu["b"])
+    abs_b = -1 * grad_b * 100 * 1 / np.interp(nd, depths, Eo["b"])
+
 
     # Transmittance
     T = np.array(list(Ed[-3])) / np.array(list(Ed[1]))  # between 20 cm and 160 cm - 180 cm uncertain if the stick was properly lowered
@@ -264,6 +312,9 @@ if __name__ == "__main__":
     ax3[2].set_ylabel("Depth [cm]")
     ax3[2].set_xlabel("$a~[\mathrm{m^{-1}}]$")
     ax3[2].legend(loc="best")
+
+    # Figure 5
+    fig5, ax5 = graph_dort_vs_measurements((ed_dort, eu_dort, eo_dort), (Ed, Eu, Eo))
 
     fig1.tight_layout()
     fig2.tight_layout()

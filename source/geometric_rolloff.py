@@ -6,9 +6,9 @@ Classes for geometric calibration methods of insta360 ONE.
 # Module importation
 import os
 import h5py
-import deepdish
 import numpy as np
 # import matlab.engine
+from numba import jit
 import matplotlib.cm
 import scipy.io as spio
 import matplotlib.pyplot as plt
@@ -59,7 +59,6 @@ class OpenMatlabFiles:
     """
 
     """
-
     def loadmat(self, filename):
         """
         Loading fisheyeparams matlab.
@@ -72,31 +71,31 @@ class OpenMatlabFiles:
         data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
         return self._check_keys(data)
 
-    def _check_keys(self, dictio):
+    def _check_keys(self, dict):
         """
         checks if entries in dictionary are mat-objects. If yes
         todict is called to change them to nested dictionaries
         """
-        for key in dictio:
-            if isinstance(dictio[key], spio.matlab.mio5_params.mat_struct):
-                dictio[key] = self._todict(dictio[key])
-        return dictio
+        for key in dict:
+            if isinstance(dict[key], spio.matlab.mio5_params.mat_struct):
+                dict[key] = self._todict(dict[key])
+        return dict
 
     def _todict(self, matobj):
         """
         A recursive function which constructs from matobjects nested dictionaries
         """
-        dictio = {}
+        dict = {}
         for strg in matobj._fieldnames:
             elem = matobj.__dict__[strg]
             if isinstance(elem, spio.matlab.mio5_params.mat_struct):
-                dictio[strg] = self._todict(elem)
+                dict[strg] = self._todict(elem)
             else:
-                dictio[strg] = elem
-        return dictio
+                dict[strg] = elem
+        return dict
 
 
-class MatlabGeometric(OpenMatlabFiles):
+class MatlabGeometric:
     """
     Class with methods to open and process files using Matlab fisheye calibration OcamCalib object.
     """
@@ -117,21 +116,8 @@ class MatlabGeometric(OpenMatlabFiles):
         # Inverse mapping
         self.up, self.vp, self.radial = self.euclidean_distance()
 
-    def recursive_matlab2array(self, dic):
-        """
-        Function to transpose matlab.double to numpy array.
-
-        :param dic:
-        :return:
-        """
-        for k in dic.keys():
-            if isinstance(dic[k], dict):
-                dic[k] = self.recursive_matlab2array(dic[k])
-            elif isinstance(dic[k], matlab.double):
-                dic[k] = np.squeeze(np.array(dic[k]))
-        return dic
-
     @staticmethod
+    @jit(nopython=True)
     def imagingfunction(rdistance, MapC):
         """
         Imaging function as implemented in Scaramuzza et al.
@@ -221,8 +207,7 @@ class MatlabGeometric(OpenMatlabFiles):
         intrinsics = fisheyeParams["Intrinsics"]
         xcenter, ycenter = intrinsics["DistortionCenter"][0], intrinsics["DistortionCenter"][1]
 
-        radial_distance = np.sqrt((reprojection_points[:, 0, :] - xcenter) ** 2 +
-                                  (reprojection_points[:, 1, :] - ycenter) ** 2)
+        radial_distance = np.sqrt((reprojection_points[:, 0, :] - xcenter) ** 2 + (reprojection_points[:, 1, :] - ycenter) ** 2)
 
         # Reprojection mean error per image (eucledian distance between corners detected and reprojections)
         reprojection_error = fisheyeParams["ReprojectionErrors"]
@@ -235,8 +220,10 @@ class MatlabGeometric(OpenMatlabFiles):
 
         fitted_points = reprojection_points + reprojection_error
 
-        radial_distance_fitted_points = np.sqrt((fitted_points[:, 0, :] - xcenter) ** 2 +
-                                                (fitted_points[:, 1, :] - ycenter) ** 2)
+        radial_distance_fitted_points = np.sqrt((fitted_points[:, 0, :] - xcenter) ** 2 + (fitted_points[:, 1, :] - ycenter) ** 2)
+
+        #plt.figure()
+        #plt.scatter(radial_distance_fitted_points.ravel(), radial_distance.ravel())
 
         return radial_distance, radial_distance_fitted_points, mean_x, mean_y, mean_e, eucledian_error
 
@@ -260,6 +247,15 @@ class MatlabGeometric(OpenMatlabFiles):
         ang_fitted = np.arctan2(rfitted, self.imagingfunction(rfitted, self.mapping_coefficients)) * 180 / np.pi
         residuals = abs(ang_map - ang_fitted)
 
+        #plt.figure()
+        #plt.scatter(rmap, ang_map, s=3, label="Reprojected")
+        #plt.scatter(rfitted, ang_fitted, s=3, label="Corner detection")
+        #plt.legend(loc="best")
+
+        #d = (((self.imagingfunction(rmap, self.mapping_coefficients) - self.mapping_coefficients[0]) - rmap) / rmap)
+        #plt.figure()
+        #plt.scatter(rmap, d, s=3, label="Reprojected")
+
         # Sorting
         argsort_r = np.argsort(r)
 
@@ -267,6 +263,108 @@ class MatlabGeometric(OpenMatlabFiles):
         n_im = self.fisheye_params["ReprojectionErrors"].shape[2]
 
         return r[argsort_r], zen[argsort_r], rmap, residuals, n_im
+
+    def geometric_curvefit(self, radial, angles):
+        """
+        Curve fit for geometric calibration using polynomial_fit_forcedzero.
+
+        :param radial:
+        :param angles:
+        :return:
+        """
+        return curve_fit(self.polynomial_fit_forcedzero, radial, angles)
+
+    def inverse_mapping(self):
+        """
+
+        :return:
+        """
+
+        r, zen, _ = self.angular_coordinates()
+
+        popt, pcov = self.geometric_curvefit(zen.ravel()[::100000], r.ravel()[::100000])
+
+        rsquared = self.rsquare(self.polynomial_fit_forcedzero, popt, pcov, zen.ravel()[::100000], r.ravel()[::100000])
+
+        return popt, pcov, rsquared
+
+    def rsquare(self, func, popt, covmat, x, y):
+        """
+
+        :param func:
+        :param popt:
+        :param covmat:
+        :param x:
+        :param y:
+        :return:
+        """
+        # Std of coefficient parameters
+        perr = np.sqrt(np.diag(covmat))
+
+        # Rsquare
+        residuals = y - func(x, *popt)
+        rsquared = 1 - np.sum(residuals ** 2) / np.sum((y - np.mean(y)) ** 2)
+
+        return rsquared
+
+    @staticmethod
+    def points_3d(zeni, azi):
+        """
+
+        :param zeni: Zenith 2D array in radian.
+        :param azi: Azimuth 2D array in radian.
+        :return:
+        """
+        return np.sin(zeni) * np.cos(azi), np.sin(zeni) * np.sin(azi), np.cos(zeni)
+
+    @staticmethod
+    def polynomial_fit_forcedzero(x, a1, a2, a3, a4):
+        """
+        Polynomial fit with a0 forced to zero for geometric calibration.
+
+        :param x:
+        :param a1:
+        :param a2:
+        :param a3:
+        :param a4:
+        :return:
+        """
+        return a1 * x + a2 * x ** 2 + a3 * x ** 3 + a4 * x ** 4
+
+    def loadmat(self, filename):
+        """
+        Loading fisheyeparams matlab.
+
+        this function should be called instead of direct spio.loadmat
+        as it cures the problem of not properly recovering python dictionaries
+        from mat files. It calls the function check keys to cure all entries
+        which are still mat-objects
+        """
+        data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
+        return self._check_keys(data)
+
+    def _check_keys(self, dictio):
+        """
+        checks if entries in dictionary are mat-objects. If yes
+        todict is called to change them to nested dictionaries
+        """
+        for key in dictio:
+            if isinstance(dictio[key], spio.matlab.mio5_params.mat_struct):
+                dictio[key] = self._todict(dictio[key])
+        return dictio
+
+    def _todict(self, matobj):
+        """
+        A recursive function which constructs from matobjects nested dictionaries
+        """
+        dictio = {}
+        for strg in matobj._fieldnames:
+            elem = matobj.__dict__[strg]
+            if isinstance(elem, spio.matlab.mio5_params.mat_struct):
+                dictio[strg] = self._todict(elem)
+            else:
+                dictio[strg] = elem
+        return dictio
 
     def plot_results(self):
         """
@@ -282,8 +380,7 @@ class MatlabGeometric(OpenMatlabFiles):
 
         # Plots
         fig1 = plt.figure(figsize=(12, 3.57))
-        ax1 = [fig1.add_subplot(1, 3, 2), fig1.add_subplot(1, 3, 3)]
-        ax1.append(fig1.add_subplot(1, 3, 1, projection="3d"))
+        ax1 = [fig1.add_subplot(1, 3, 2), fig1.add_subplot(1, 3, 3), fig1.add_subplot(1, 3, 1, projection="3d")]
 
         # Axe 1
         ax1[0].plot(r_reduced, z_reduced, linewidth=1.5, linestyle="-", color="black")
@@ -369,6 +466,7 @@ class MatlabGeometric(OpenMatlabFiles):
 
     def draw_targets(self, ax):
         """
+        Generate figure with targets position and orientation.
 
         :param ax:
         :return:
@@ -399,73 +497,6 @@ class MatlabGeometric(OpenMatlabFiles):
 
         return ax
 
-    def geometric_curvefit(self, radial, angles):
-        """
-        Curve fit for geometric calibration using polynomial_fit_forcedzero.
-
-        :param radial:
-        :param angles:
-        :return:
-        """
-        return curve_fit(self.polynomial_fit_forcedzero, radial, angles)
-
-    def inverse_mapping(self):
-        """
-
-        :return:
-        """
-
-        r, zen, _ = self.angular_coordinates()
-
-        popt, pcov = self.geometric_curvefit(zen.ravel()[::100000], r.ravel()[::100000])
-
-        rsquared = self.rsquare(self.polynomial_fit_forcedzero, popt, pcov, zen.ravel()[::100000], r.ravel()[::100000])
-
-        return popt, pcov, rsquared
-
-    def rsquare(self, func, popt, covmat, x, y):
-        """
-
-        :param func:
-        :param popt:
-        :param covmat:
-        :param x:
-        :param y:
-        :return:
-        """
-        # Std of coefficient parameters
-        perr = np.sqrt(np.diag(covmat))
-
-        # Rsquare
-        residuals = y - func(x, *popt)
-        rsquared = 1 - np.sum(residuals ** 2) / np.sum((y - np.mean(y)) ** 2)
-
-        return rsquared
-
-    @staticmethod
-    def points_3d(zeni, azi):
-        """
-
-        :param zeni: Zenith 2D array in radian.
-        :param azi: Azimuth 2D array in radian.
-        :return:
-        """
-        return np.sin(zeni) * np.cos(azi), np.sin(zeni) * np.sin(azi), np.cos(zeni)
-
-    @staticmethod
-    def polynomial_fit_forcedzero(x, a1, a2, a3, a4):
-        """
-        Polynomial fit with a0 forced to zero for geometric calibration.
-
-        :param x:
-        :param a1:
-        :param a2:
-        :param a3:
-        :param a4:
-        :return:
-        """
-        return a1 * x + a2 * x ** 2 + a3 * x ** 3 + a4 * x ** 4
-
 
 class MatlabGeometricMengine(MatlabGeometric):
     """
@@ -473,10 +504,8 @@ class MatlabGeometricMengine(MatlabGeometric):
     """
 
     def __init__(self, fisheye_parameters_h5, fisheye_intrinsic_error_h5):
-        # Intrinsics
-        #self.fisheye_params = self.recursive_matlab2array(fisheye_parameters)
-        #self.intrinsic_errors = self.recursive_matlab2array(fisheye_intrinsic_error)
 
+        # Intrinsics
         self.fisheye_params = recursive_h5_to_dict(fisheye_parameters_h5)
         self.intrinsic_errors = recursive_h5_to_dict(fisheye_intrinsic_error_h5)
 
@@ -530,16 +559,20 @@ class RolloffFunctions(ProcessImage):
 
         if self.which_lens == "close":
             if self.medium.lower() == "air":
-                geocalib = deepdish.io.load(bpath + "geometric-calibration-air.h5", "/lens-close/20190104_192404/")
+                geocalib = h5py.File(bpath + "geometric-calibration-air.h5")
+                geocalib = geocalib["/lens-close/20190104_192404/"]
             elif self.medium.lower() == "water":
-                geocalib = deepdish.io.load(bpath + "geometric-calibration-water.h5", "/lens-close/20200730_112353/")
+                geocalib = h5py.File(bpath + "geometric-calibration-water.h5")
+                geocalib = geocalib["/lens-close/20200730_112353/"]
             else:
                 raise ValueError("Invalid entry")
         elif self.which_lens == "far":
             if self.medium.lower() == "air":
-                geocalib = deepdish.io.load(bpath + "geometric-calibration-air.h5", "/lens-far/20190104_214037/")
+                geocalib = h5py.File(bpath + "geometric-calibration-air.h5")
+                geocalib = geocalib["/lens-far/20190104_214037/"]
             elif self.medium.lower() == "water":
-                geocalib = deepdish.io.load(bpath + "geometric-calibration-water.h5", "/lens-far/20200730_143716/")
+                geocalib = h5py.File(bpath + "geometric-calibration-water.h5")
+                geocalib = geocalib["/lens-far/20200730_143716/"]
             else:
                 raise ValueError("Invalid entry")
         else:
@@ -574,7 +607,7 @@ class RolloffFunctions(ProcessImage):
         for n, path in enumerate(imlist):
             print("Processing image number {0}".format(n))
 
-            im_dws, metadata = self.initial_process_i360(path)
+            im_dws, metadata = self.initial_process_i360(path)  # Initial process make dark subtraction
 
             # Image total
             imtotal += im_dws
@@ -673,33 +706,6 @@ class RolloffFunctions(ProcessImage):
         rsquared, perr = self.rsquare(self.rolloff_polynomial, popt, pcov, angles, rolloff)
 
         return popt, pcov, rsquared, perr
-
-    def rsquare(self, func, popt, covmat, x, y):
-        """
-
-        :param func:
-        :param popt:
-        :param covmat:
-        :param x:
-        :param y:
-        :return:
-        """
-        # Std of coefficient parameters
-        perr = np.sqrt(np.diag(covmat))
-
-        # Rsquare
-        residuals = y - func(x, *popt)
-        rsquared = 1 - np.sum(residuals ** 2) / np.sum((y - np.mean(y)) ** 2)
-
-        # Display results
-        print("rsquared = {0:.8f}".format(rsquared))
-        res = ""
-        param = func.__code__.co_varnames
-        for i in zip(param[1:], popt, perr):
-            res += "%s: %.4E (%.4E)\n" % i
-        print(res)
-
-        return rsquared, perr
 
 
 if __name__ == "__main__":

@@ -6,7 +6,6 @@ Linearity histogram. Pearson coefficient histogram.
 # Importation of standard modules
 import numpy as np
 from scipy import stats
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from skimage.measure import block_reduce
 
@@ -147,20 +146,31 @@ def analysis_oneimage(zen, zenlim, imlist, step, num_mean, wlens):
 
 
 def rel_uncertainty_mult_div(relative_unc_x, relative_unc_y):
+    """
+
+    :param relative_unc_x:
+    :param relative_unc_y:
+    :return:
+    """
     return np.sqrt(relative_unc_x**2 + relative_unc_y**2)
 
 
 if __name__ == "__main__":
 
-    # Instance figurefunctions
+    # Instance figure functions
     ff = FigureFunctions()
 
     # Instance of of class ProcessImage
     processimage = ProcessImage()
 
-    # Files path (MYBOOK)
-    filepath_exp = "/Volumes/MYBOOK/data-i360/calibrations/linearity/integration-time/"
-    filepath_iso = "/Volumes/MYBOOK/data-i360/calibrations/linearity/iso-gain/"
+    # if windows:
+    volume_path = processimage.folder_choice()
+    filepath_exp = volume_path + "data-i360/calibrations/linearity/integration-time/"
+    filepath_iso = volume_path + "data-i360/calibrations/linearity/iso-gain/"
+
+    # if mac:
+    #filepath_exp = "/Volumes/MYBOOK/data-i360/calibrations/linearity/integration-time/"
+    #filepath_iso = "/Volumes/MYBOOK/data-i360/calibrations/linearity/iso-gain/"
 
     # Input lens to analyzed
     while True:
@@ -206,6 +216,12 @@ if __name__ == "__main__":
 
     # Dark removal
     imstack_exp -= bl_expln[None, None, :]
+    #imstack_exp[:, :, :4] -= np.stack((imstack_exp_bl[:, :, 0], imstack_exp_bl[:, :, 0], imstack_exp_bl[:, :, 0], imstack_exp_bl[:, :, 0]), axis=2)
+    #imstack_exp[:, :, 4:8] -= np.stack((imstack_exp_bl[:, :, 1], imstack_exp_bl[:, :, 1], imstack_exp_bl[:, :, 1], imstack_exp_bl[:, :, 1]), axis=2)
+    #imstack_exp[:, :, 8:12] -= np.stack((imstack_exp_bl[:, :, 2], imstack_exp_bl[:, :, 2], imstack_exp_bl[:, :, 2], imstack_exp_bl[:, :, 2]), axis=2)
+    #imstack_exp[:, :, 12:16] -= np.stack((imstack_exp_bl[:, :, 3], imstack_exp_bl[:, :, 3], imstack_exp_bl[:, :, 3], imstack_exp_bl[:, :, 3]), axis=2)
+    #imstack_exp[:, :, 16:20] -= np.stack((imstack_exp_bl[:, :, 4], imstack_exp_bl[:, :, 4], imstack_exp_bl[:, :, 4], imstack_exp_bl[:, :, 4]), axis=2)
+    #imstack_exp[:, :, 20:24] -= np.stack((imstack_exp_bl[:, :, 5], imstack_exp_bl[:, :, 5], imstack_exp_bl[:, :, 5], imstack_exp_bl[:, :, 5]), axis=2)
     imstack_iso -= bl_isoln[None, None, :]
 
     # Average
@@ -216,13 +232,13 @@ if __name__ == "__main__":
     firstim = 0  # first image to take
 
     # Normalization exposure time
-    alldata_exp = imstack_exp[zen<=mask_zenith, firstim::interval]
+    alldata_exp = imstack_exp[zen <= mask_zenith, firstim::interval]
     exptil = np.tile(exp_expln[::interval], (alldata_exp.shape[0], 1))
     norm_exp = exptil * np.tile(iso_expln[::interval], (alldata_exp.shape[0], 1))
     dn_norm_exp = alldata_exp.astype(float) / norm_exp
 
     # Normalization iso
-    alldata_iso = imstack_iso[zen<=mask_zenith, firstim::interval]
+    alldata_iso = imstack_iso[zen <= mask_zenith, firstim::interval]
     isotil = np.tile(iso_isoln[::interval], (alldata_iso.shape[0], 1))
     norm_iso = isotil * np.tile(exp_isoln[::interval], (alldata_exp.shape[0], 1))
     dn_norm_iso = alldata_iso.astype(float) / norm_iso
@@ -242,7 +258,8 @@ if __name__ == "__main__":
     plt.style.use("../../figurestyle.mplstyle")
 
     # Figure 2
-    fig2 = plt.figure(figsize=ff.set_size(fraction=0.7, height_ratio=0.75))
+    #fig2 = plt.figure(figsize=ff.set_size(fraction=0.7, height_ratio=0.75))
+    fig2 = plt.figure(figsize=ff.set_size(fraction=0.6, height_ratio=0.75))
     ax2 = fig2.add_subplot(111)
     alphisto = 0.7
 
@@ -250,9 +267,9 @@ if __name__ == "__main__":
     ax2.hist(p_iso, range=(0.92, 1.00), bins=100, alpha=alphisto, color="gray", label="ISO gain")
     ax2.axvline(p.mean(), color="k", linestyle="--", alpha=alphisto)
     ax2.axvline(p_iso.mean(), color="gray", linestyle="--", alpha=alphisto)
-    ax2.annotate('$\mu_{{r_{{t}}^2}}={0:.5f}$'.format(p.mean()), xy=(p.mean(), 400), xytext=(-150, 0),
+    ax2.annotate('$\overline{{R}}_{{t}}^2={0:.3f}$'.format(p.mean()), xy=(p.mean(), 400), xytext=(-150, 0),
                  textcoords="offset points", fontsize=8, arrowprops=dict(arrowstyle='->'))
-    ax2.annotate('$\mu_{{r_{{ISO}}^2}}={0:.5f}$'.format(p_iso.mean()), xy=(p_iso.mean(), 200), xytext=(-100, 0),
+    ax2.annotate('$\overline{{R}}_{{ISO}}^2={0:.3f}$'.format(p_iso.mean()), xy=(p_iso.mean(), 200), xytext=(-100, 0),
                  textcoords="offset points", fontsize=8, arrowprops=dict(arrowstyle='->'))
 
     ax2.set_yscale("log")
@@ -260,7 +277,7 @@ if __name__ == "__main__":
 
     ax2.text(0.92, 1000, "{0} individual pixels".format(p.shape[0]), fontsize=8)
 
-    ax2.set_xlabel("Squared Pearson coefficient $r^2$")
+    ax2.set_xlabel("Squared Pearson coefficient $R^2$")
     ax2.set_ylabel("Counts")
 
     ax2.legend(loc="upper left")
@@ -340,6 +357,7 @@ if __name__ == "__main__":
         # Data axe 8
         expm, expv = alldata_exp_cl[lab].mean(axis=0), alldata_exp_cl[lab].var(axis=0)
         photon_curves = stats.linregress(expm, expv)
+
         print(photon_curves)
         xphoton_curves = np.linspace(expm.min() * 0.95, expm.max() * 1.05, 50)
         lin_curves = stats.linregress(exp_expln[::interval], expm)
@@ -433,5 +451,6 @@ if __name__ == "__main__":
     # Saving figures
     optics_correspondance = {"c": "close", "f": "far"}
     fig2.savefig("figures/linearity-histogram-{}.pdf".format(optics_correspondance[answer.lower()]), format="pdf", dpi=600)
+    fig2.savefig("figures/linearity-histogram-{}.png".format(optics_correspondance[answer.lower()]), format="png", dpi=600)
 
     plt.show()
