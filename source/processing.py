@@ -47,6 +47,29 @@ class ProcessImage:
 
         return im_c, metadata
 
+    def readDNG_x3(self, path, which="front"):
+        """
+        Reading dng files of Insta360 X3 camera.
+
+        :param path: path to image
+        :type path: str
+        :param which: which optic (front or back)
+        :type which: str
+        :return: tuple of image ndarray, and metadata dict
+        :rtype: tuple
+        """
+
+        image, metadata = self._readDNG_np(path)
+        height = int(metadata["Image ImageLength"].values[0])
+        half_height = height // 2
+
+        if which.lower() == "front":
+            im = image[0:half_height:1, :]
+        elif which.lower() == "back":
+            im = image[half_height:height:1, :]
+
+        return im, metadata
+
     @staticmethod
     def _readDNGmetadata(path):
         """
@@ -67,7 +90,7 @@ class ProcessImage:
         :return: tuple (raw image, metadata)
         """
         metadata = self._readDNGmetadata(path)
-        rows, cols = 6912, 3456
+        rows, cols = metadata["Image ImageLength"].values[0], metadata["Image ImageWidth"].values[0]
         img = np.fromfile(path, dtype=np.uint16, count=rows * cols)
         return img.reshape((rows, cols)), metadata
 
@@ -114,7 +137,7 @@ class ProcessImage:
 
         return imlist
 
-    def imagestack(self, imagelist, whichim):
+    def imagestack(self, imagelist, whichim, cam="one"):
         """
         Stacking each image given in the list of absolute paths (one path to every image).
 
@@ -123,7 +146,11 @@ class ProcessImage:
         :return: tuple -- (stack of every images in 3rd dimension, exposure time, iso gain, black level)
         """
 
-        imstack = np.empty((3456, 3456, len(imagelist)))
+        # Extract metadata
+        meti = self._readDNGmetadata(imagelist[0])
+
+        rows, cols = meti["Image ImageLength"].values[0], meti["Image ImageWidth"].values[0]
+        imstack = np.empty((rows // 2, cols, len(imagelist)))
         iso = np.array([])
         exp = np.array([])
         blevel = np.array([])
@@ -133,9 +160,12 @@ class ProcessImage:
             print("Opening image {0}".format(n+1))
 
             # Opening image
-            im, met = self.readDNG_insta360_np(impath, whichim)
-            imstack[:, :, n] = im
+            if cam.lower() == "one":
+                im, met = self.readDNG_insta360_np(impath, whichim)
+            elif cam.lower() == "x3":
+                im, met = self.readDNG_x3(impath, whichim)
 
+            imstack[:, :, n] = im
             exp = np.append(exp, self.extract_integrationtime(met))
             iso = np.append(iso, self.extract_iso(met))
             blevel = np.append(blevel, self.extract_blevel(met))
@@ -269,12 +299,12 @@ class ProcessImage:
         :param metadata: insta360 metadata
         :return: exposure time [s]
         """
-        exptime = str(metadata['Image ExposureTime']).split("/")
-        if len(exptime) == 2:
-            exptime = float(exptime[0]) / float(exptime[1])
-        else:
-            exptime = float(exptime[0])
-        return exptime
+        #exptime = str(metadata['Image ExposureTime']).split("/")
+        #if len(exptime) == 2:
+        #    exptime = float(exptime[0]) / float(exptime[1])
+        #else:
+        #    exptime = float(exptime[0])
+        return float(metadata['Image ExposureTime'].values[0])
 
     @staticmethod
     def extract_iso(metadata):
@@ -284,7 +314,7 @@ class ProcessImage:
         :param metadata: metadata dictionary
         :return:
         """
-        return float(str(metadata["Image ISOSpeedRatings"]))
+        return float(metadata["Image ISOSpeedRatings"].values[0])
 
     @staticmethod
     def extract_blevel(metadata):
@@ -295,7 +325,8 @@ class ProcessImage:
         :return:
         """
         # return float(str(metadata["Image Tag 0xC61A"]))
-        return float(str(metadata["Image BlackLevel"]))
+        #return float(str(metadata["Image BlackLevel"]))
+        return metadata["Image BlackLevel"].values[0]  # TODO: consider four values of X3
 
     @staticmethod
     def gain_linear(gain_db):
@@ -799,5 +830,12 @@ if __name__ == "__main__":
 
     pim = ProcessImage()
     f_spectr = FlameSpectrometer("/Volumes/MYBOOK/data-i360-tests/calibrations/absolute-radiance/09082020")
+
+    # Test of opening DNG files
+    path_imone = "/Users/raphaellarouche/Desktop/IMG_20180831_181304_095.dng"
+    imone, metone = pim._readDNG_np(path_imone)
+
+    path_imx3 = "/Users/raphaellarouche/Desktop/IMG_20230212_155614_00_063.dng"
+    imx3, metx3 = pim._readDNG_np(path_imx3)
 
     plt.show()

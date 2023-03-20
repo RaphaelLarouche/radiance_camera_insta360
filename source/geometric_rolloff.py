@@ -642,7 +642,8 @@ class RolloffFunctions(ProcessImage):
         im_op = im_op.astype(float)
 
         # Read noise removal
-        im_op -= float(str(metadata["Image BlackLevel"]))
+        #im_op -= float(str(metadata["Image BlackLevel"]))
+        im_op -= self.extract_blevel(metadata)
 
         # Downsampling
         im_dws = self.dwnsampling(im_op, "RGGB", ave=True)
