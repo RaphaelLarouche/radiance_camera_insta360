@@ -12,7 +12,8 @@ import glob
 import pandas
 import exifread
 import numpy as np
-from numba import jit
+import rawpy
+from numba import jit, njit
 import tkinter as tk
 from tkinter import filedialog
 import matplotlib.pyplot as plt
@@ -59,7 +60,7 @@ class ProcessImage:
         :rtype: tuple
         """
 
-        image, metadata = self._readDNG_np(path)
+        image, metadata = self._readDNG_rawpy(path)
         height = int(metadata["Image ImageLength"].values[0])
         half_height = height // 2
 
@@ -93,6 +94,19 @@ class ProcessImage:
         rows, cols = metadata["Image ImageLength"].values[0], metadata["Image ImageWidth"].values[0]
         img = np.fromfile(path, dtype=np.uint16, count=rows * cols)
         return img.reshape((rows, cols)), metadata
+
+    def _readDNG_rawpy(self, path):
+        """
+
+        :param path:
+        :type path:
+        :return:
+        :rtype:
+        """
+
+        metadata = self._readDNGmetadata(path)
+        img = rawpy.imread(path).raw_image
+        return img, metadata
 
     @staticmethod
     def folder_choice(initialpath="/Volumes/KINGSTON/"):
@@ -202,6 +216,30 @@ class ProcessImage:
             raise Exception("Not a valid Bayer pattern.")
 
     @staticmethod
+    @njit
+    def dwnsampling_acc(image_mosaic, pattern_array):
+        """
+        Function to downsample each band in the raw image (Bayer Mosaic) according to the basic pattern of the first four
+        pixels. Possible values are RGGB, BGGR, GRBG or GBRG.
+
+        :param image_mosaic: Raw image (array)
+        :param pattern: Bayer pattern of the first four pixels (str)
+        :param ave: averaging two consecutive row of green pixels (bool)
+        :return: 3 dimension array of ave=True, tuple (r, g, b) if ave=False
+        """
+
+        if len(image_mosaic.shape) == 2:
+            rind, gind, bind = pattern_array
+
+            r = image_mosaic[rind[0]::2, rind[1]::2]
+            b = image_mosaic[bind[0]::2, bind[1]::2]
+            g = image_mosaic[gind[0, 0]::2, gind[0, 1]::2]/2 + image_mosaic[gind[1, 0]::2, gind[1, 1]::2]/2
+
+            return np.dstack((r, g, b))
+        else:
+            raise Exception("Not a valid Bayer pattern.")
+
+    @staticmethod
     def dws_pattern(pattern):
         """
         Indexes of the first pixel for each band according to Bayer Pattern given in entry.
@@ -304,7 +342,11 @@ class ProcessImage:
         #    exptime = float(exptime[0]) / float(exptime[1])
         #else:
         #    exptime = float(exptime[0])
-        return float(metadata['Image ExposureTime'].values[0])
+        if "Image ExposureTime" in metadata.keys():
+            texp = float(metadata['Image ExposureTime'].values[0])
+        else:
+            texp = float(metadata['EXIF ExposureTime'].values[0])
+        return texp
 
     @staticmethod
     def extract_iso(metadata):
@@ -314,7 +356,11 @@ class ProcessImage:
         :param metadata: metadata dictionary
         :return:
         """
-        return float(metadata["Image ISOSpeedRatings"].values[0])
+        if "Image ISOSpeedRatings" in metadata.keys():
+            isorating = float(metadata['Image ISOSpeedRatings'].values[0])
+        else:
+            isorating = float(metadata['EXIF ISOSpeedRatings'].values[0])
+        return isorating
 
     @staticmethod
     def extract_blevel(metadata):
@@ -476,6 +522,41 @@ class ProcessImage:
         return corners_refine
 
     @staticmethod
+    def detect_corners_x3(img, vis=False):
+
+        height, width = img.shape  # Shape of image
+
+        # Refinement criteria
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
+
+        # Resizing for speed optimization
+        resizefactor = 2
+        img_dwnsca = cv2.resize(img, (int(width / resizefactor), int(height / resizefactor)))  # Resize image
+
+        ret, corners_dwnsca = cv2.findChessboardCorners(img_dwnsca, (7, 7), None)
+
+        print(ret)
+
+        corners_refine = False
+        if ret:
+            corners = corners_dwnsca
+            corners[:, 0][:, 0] = corners_dwnsca[:, 0][:, 0] * resizefactor
+            corners[:, 0][:, 1] = corners_dwnsca[:, 0][:, 1] * resizefactor
+
+            # Refinement
+            corners_refine = cv2.cornerSubPix(img, np.float32(corners), (5, 5), (-1, -1), criteria)
+            corners_refine = corners_refine[:, 0]
+
+            # Visualisation
+            if vis:
+                imd = img.copy()
+                imd = cv2.drawChessboardCorners(imd, (7, 7), corners_refine, ret)
+                cv2.imshow("image", cv2.resize(imd, (int(width / 4), int(height / 4))))
+                cv2.waitKey(1)
+
+        return corners_refine
+
+    @staticmethod
     def region_properties(image, minimum, *maximum):
         """
 
@@ -529,6 +610,31 @@ class ProcessImage:
                 d[...] = dat
             else:
                 hf.create_dataset(group + "/" + dataname, data=dat)
+
+    @staticmethod
+    def save_x3_hdf5(filename, name_group, dataname, data):
+        """
+
+        :param filename:
+        :type filename:
+        :param name_group:
+        :type name_group:
+        :param dataname:
+        :type dataname:
+        :param data:
+        :type data:
+        :return:
+        :rtype:
+        """
+
+        data_path = f"{name_group}/{dataname}"
+
+        with h5py.File(filename, "a") as hf:
+            if data_path in hf:
+                d = hf[data_path]
+                d[...] = data
+            else:
+                hf.create_dataset(data_path, data=data)
 
     @staticmethod
     def open_radiance_data(path="data/oden-08312018.h5"):
@@ -835,7 +941,14 @@ if __name__ == "__main__":
     path_imone = "/Users/raphaellarouche/Desktop/IMG_20180831_181304_095.dng"
     imone, metone = pim._readDNG_np(path_imone)
 
-    path_imx3 = "/Users/raphaellarouche/Desktop/IMG_20230212_155614_00_063.dng"
-    imx3, metx3 = pim._readDNG_np(path_imx3)
+    path_imx3 = "/Users/raphaellarouche/Desktop/IMG_20230316_112443_00_001.dng"
+    imx3, metx3 = pim._readDNG_rawpy(path_imx3)
 
-    plt.show()
+    t1 = time.time()
+    im_dws = pim.dwnsampling_acc(imx3, pim.dws_pattern("GBRG"))
+    print(time.time() - t1)
+
+    #plt.figure()
+    #plt.imshow(imx3)
+
+    #plt.show()

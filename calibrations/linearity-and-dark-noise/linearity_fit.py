@@ -294,7 +294,7 @@ if __name__ == "__main__":
 
     optic_correspondance = {"c": "close", "f": "far"}
 
-    fig1.savefig("figures/linearity-fit-{0}.pdf".format(optic_correspondance[answer.lower()]), format="pdf", dpi=600)
-    fig1.savefig("figures/linearity-fit-{0}.png".format(optic_correspondance[answer.lower()]), format="png", dpi=600)
+    #fig1.savefig("figures/linearity-fit-{0}.pdf".format(optic_correspondance[answer.lower()]), format="pdf", dpi=600)
+    #fig1.savefig("figures/linearity-fit-{0}.png".format(optic_correspondance[answer.lower()]), format="png", dpi=600)
 
     plt.show()

@@ -52,6 +52,8 @@ def recursive_h5_to_dict(h5object):
             dic[k] = recursive_h5_to_dict(h5object[k])
     elif type(h5object) == h5py._hl.dataset.Dataset:  # if dataset
         return np.squeeze(np.array(h5object[:]))
+    else:
+        return h5object
     return dic
 
 
