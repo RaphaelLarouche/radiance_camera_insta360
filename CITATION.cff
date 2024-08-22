@@ -1,0 +1,37 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: radiance_camera_insta360
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Raphaël
+    family-names: Larouche
+    orcid: 'https://orcid.org/0000-0003-4334-7066'
+    email: raphael.larouche@takuvik.ulaval.ca
+    affiliation: Takuvik International Research Laboratory
+repository-code: >-
+  https://github.com/RaphaelLarouche/radiance_camera_insta360
+abstract: >+
+  This repository provides scripts for converting images
+  captured by the Insta360 ONE omnidirectional camera,
+  originally in Adobe Digital Negative (DNG) format, into
+  their effective spectral radiance equivalents. The
+  camera's RGB sensor features three spectral bands
+  corresponding to the visible spectrum, allowing for
+  radiance computation across the red, green, and blue
+  channels.
+
+keywords:
+  - Radiometry
+  - 360-degree camera
+  - RGB sensor
+  - Fisheye optics
+  - Environmental studies
+license: MIT
+commit: e771c2c
+version: 1.2.0
+date-released: '2024-03-18'
