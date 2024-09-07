@@ -2,6 +2,7 @@
 """
 
 """
+import os
 import string
 import numpy as np
 import matplotlib.pyplot as plt
@@ -91,6 +92,9 @@ def graph_radiance_pts_vs_fit(rc_obj, hl_data, depths, wl_cam):
 
 if __name__ == "__main__":
 
+    # Gen path
+    gen_path = os.path.dirname(__file__)
+
     # Freeboard
     ifb_st2 = get_ice_freeboard("data/station_2_data.txt")
     ifb_st3 = get_ice_freeboard("data/station_3_data.txt")
@@ -98,17 +102,17 @@ if __name__ == "__main__":
     label_st2 = np.array(list(create_label("data/station_2_data.txt").keys()))
     label_st3 = np.array(list(create_label("data/station_3_data.txt").keys()))
 
-    zd_st2 = rad_func.load_zenith_radiance(path=r"data/bdc_2_fit")
+    zd_st2 = rad_func.load_zenith_radiance(path=r"data/super_recu_bdc_fit_final")
     zd_st3 = rad_func.load_zenith_radiance(path=r"data/bdc_3_fit")
 
-    rc_st2 = rad_func.RadClass(data_path="data/baiedeschaleurs-03232022.h5", station="station_2", data_type="camera", freeboard=ifb_st2, wl_dct={484: 2, 544: 1, 603:0})
-    rc_st3 = rad_func.RadClass(data_path="data/baiedeschaleurs-03232022.h5", station="station_3", data_type="camera", freeboard=ifb_st3, wl_dct={484: 2, 544: 1, 603:0})
+    rc_st2 = rad_func.RadClass(data_path=r"data/baiedeschaleurs-03232022-imf-fluo.h5", station="station_2", data_type="camera", freeboard=ifb_st2, wl_dct={484: 2, 544: 1, 603:0})
+    rc_st3 = rad_func.RadClass(data_path=r"data/baiedeschaleurs-03232022.h5", station="station_3", data_type="camera", freeboard=ifb_st3, wl_dct={484: 2, 544: 1, 603:0})
 
     mask_st2 = label_st2 >= ifb_st2
     mask_st3 = label_st3 >= ifb_st3
 
-    fig1, ax1, _, _ = rad_func.graph_radiance_cam_vs_simulations(rc_st2, zd_st2, label_st2[mask_st2])
-    fig2, ax2, _, _ = rad_func.graph_radiance_cam_vs_simulations(rc_st3, zd_st3, label_st3[mask_st3])
+    fig1, ax1, _, _ = rad_func.graph_radiance_cam_vs_simulations(rc_st2, zd_st2, label_st2[mask_st2], wl_cam=np.array([484, 544, 603]))
+    fig2, ax2, _, _ = rad_func.graph_radiance_cam_vs_simulations(rc_st3, zd_st3, label_st3[mask_st3], wl_cam=np.array([484, 544, 603]))
 
     fig3, ax3 = graph_radiance_pts_vs_fit(rc_st2, zd_st2, label_st2[mask_st2], wl_cam=np.array([484, 544, 603]))
 
@@ -121,8 +125,8 @@ if __name__ == "__main__":
     fig2.tight_layout()
     #fig3.tight_layout()
 
-    rc_st2_fluo = rad_func.RadClass(data_path="data/baiedeschaleurs-03232022-fluo.h5", station="station_2", data_type="camera", freeboard=ifb_st2, wl_dct={480: 2, 540: 1, 600:0})
-    zd_st2_fluo = rad_func.load_zenith_radiance(path=r"data/bdc_2_fit_fluo")
+    rc_st2_fluo = rad_func.RadClass(data_path="data/baiedeschaleurs-03232022-imf-fluo.h5", station="station_2", data_type="camera", freeboard=ifb_st2, wl_dct={480: 2, 540: 1, 600: 0})
+    zd_st2_fluo = rad_func.load_zenith_radiance(path=r"data/super_recu_bdc_fit_final")
 
     fig4, ax4 = graph_radiance_pts_vs_fit(rc_st2_fluo, zd_st2_fluo, label_st2[mask_st2][:-1], wl_cam=np.array([480, 540, 600]))
 

@@ -71,8 +71,8 @@ if __name__ == "__main__":
     sn = "2C9JCA"
     cover = "nocover"
     wlen = "back"
-    date = "20230404"
-    med = "water"
+    date = "20230322"
+    med = "air"
 
     # Medium square size
     if med.lower() == "air":

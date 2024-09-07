@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 # Module importation
+import os
 import string
 import pandas
 import numpy as np
@@ -115,7 +116,8 @@ def plot_all_contourf(fi, ax1, ax2, ax3, depth=20.0, wave=544):
     """
 
     #rad_c = RadClass(data_path="data/oden-08312018.h5")
-    rad_c = RadClass(data_path="data/oden-08312018-fluo.h5")
+    #rad_c = RadClass(data_path="data/oden-08312018-fluo.h5")
+    rad_c = RadClass(data_path="data/oden-08312018-imf-fluo.h5")
 
     # Angular coordinates
     ze = rad_c.zenith_meshgrid.copy()
@@ -156,7 +158,8 @@ def plot_azavg_radiance(ax, depth=20.0, wave=544):
     """
 
     #rad_c = RadClass(data_path="data/oden-08312018.h5")
-    rad_c = RadClass(data_path="data/oden-08312018-fluo.h5")
+    #rad_c = RadClass(data_path="data/oden-08312018-fluo.h5")
+    rad_c = RadClass(data_path="data/oden-08312018-imf-fluo.h5")
 
     th_smooth, rad_smooth = rad_c.get_radiance_avg_at_depth_wl(depth=depth, wl=wave, smooth=True)  # Smooth
     th_raw, rad_raw = rad_c.get_radiance_avg_at_depth_wl(depth=depth, wl=wave, smooth=False)  # Raw
@@ -187,10 +190,11 @@ if __name__ == "__main__":
 
     # Radiance class
     #rc = RadClass(data_path="data/oden-08312018.h5")
-    rc = RadClass(data_path="data/oden-08312018-fluo.h5")
+    #rc = RadClass(data_path="data/oden-08312018-fluo.h5")
+    rc = RadClass(data_path="data/oden-08312018-imf-fluo.h5")
 
     # Create figure
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
     #plt.style.use("seaborn")
 
     fig1 = plt.figure(figsize=(6.6929, 6.6929 * 1.1))

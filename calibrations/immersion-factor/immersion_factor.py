@@ -101,6 +101,7 @@ def n_from_immersionfactor(cim, nw):
 
         coeff = np.array([c1[i], c2[i], c3[i]])
         r = np.roots(coeff)
+        #print(r)
         ro[i] = r[r>=0]
     return ro
 
@@ -178,7 +179,7 @@ if __name__ == "__main__":
     ff = FigureFunctions()
 
     path_i360 = os.path.dirname(os.path.dirname(__file__))
-    path_to_volume = process.folder_choice()
+    path_to_volume = '/Volumes/MYBOOK/'
 
     # Choice of lens
     while True:
@@ -272,7 +273,7 @@ if __name__ == "__main__":
     im_air_dws = process.dwnsampling(im_air_stack.mean(axis=2), "RGGB")
 
     # ______ Loops
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
 
     z = water_level - camera_z
 
@@ -322,7 +323,8 @@ if __name__ == "__main__":
     dn_water_zero = np.empty((1, 3))
     inter = np.empty((1, 3))
     inter_std = np.empty((1, 3))
-    tx = "$ln~DN_{{i}}(z) = m \cdot z + b$\n$m = ({0:.3f}\pm{1:.3f})$\n$b = ({2:.3f}\pm{3:.3f})$\n$R^{{2}} = {4:.3f}$"
+    #tx = "$ln~DN_{{i}}(z) = m \cdot z + b$\n$m = ({0:.3f}\pm{1:.3f})$\n$b = ({2:.3f}\pm{3:.3f})$\n$R^{{2}} = {4:.3f}$"
+    tx = "$ln~y_{{DN,i}}(z) = m \cdot z + b$\n$m = ({0:.3f}\pm{1:.3f})$\n$b = ({2:.3f}\pm{3:.3f})$\n$R^{{2}} = {4:.3f}$"
 
     #fig1, ax1 = plt.subplots(3, 1, figsize=(ff.set_size(subplots=(2, 1), fraction=0.7)[0], ff.set_size(subplots=(2, 1))[1] * 0.8))
     #fig1, ax1 = plt.subplots(1, 3, figsize=(ff.set_size(subplots=(1, 3))), sharey=True)
@@ -333,6 +335,7 @@ if __name__ == "__main__":
     for b in range(dn_water_mean.shape[1]):
         slope, intercept, rval, _, stderror = stats.linregress(z, np.log(dn_water_mean[:, b]))
         print(rval ** 2)
+        print(f"slope band {b}: {slope}")
 
         _, std_int = estimators_std(slope, intercept, z, np.log(dn_water_mean[:, b]))
 
@@ -367,12 +370,13 @@ if __name__ == "__main__":
         #             linestyle="none", label="$DN(0^{-})$")
 
         #ax1[b].errorbar(np.log(dn_water_mean[:, b]), z, xerr=dn_water_std[:, b]/(2* dn_water_mean[:, b]), linestyle="none", marker="o", markersize=4, ecolor=col[b], markeredgecolor=col[b], markerfacecolor="none", label="Water measurements")
-        ax1[b].plot(np.log(dn_water_mean[:, b]), z, "o", markersize=4, markeredgecolor=col[b], markerfacecolor="none", label="$\ln~DN(z)$")
+        ax1[b].plot(np.log(dn_water_mean[:, b]), z, "o", markersize=4, markeredgecolor=col[b], markerfacecolor="none", label="$\ln~y_{DN,i}(z)$") #label="$\ln~DN(z)$")
         #ax1[b].errorbar(np.log(dn_air_mean[b]), 0, xerr=err_air.T[0][b], color=col[b], marker="s", markersize=4,  markerfacecolor="none",
         #                linestyle="none", label="$DN(0^{+})$")
-        ax1[b].errorbar(np.log(dn_water_zero[0][b]), 0, color=col[b], xerr=inter_std[0][b], marker="^", markersize=4,  markerfacecolor="none", linestyle="none", label="$\ln~DN(0^{-})$")
+        ax1[b].errorbar(np.log(dn_water_zero[0][b]), 0, color=col[b], xerr=inter_std[0][b], marker="^", markersize=4,  markerfacecolor="none", linestyle="none", label="$\ln~y_{DN,i}(0^{-})$") #label="$\ln~DN(0^{-})$")
 
-        ax1[b].set_xlabel("$\ln~DN_{i}$")
+        #ax1[b].set_xlabel("$\ln~DN_{i}$")
+        ax1[b].set_xlabel("$\ln~y_{DN,i}$")
         ax1[b].legend(loc="lower right", fontsize=7, frameon=False)
         ax1[b].invert_yaxis()
 
@@ -412,6 +416,7 @@ if __name__ == "__main__":
     optics_correspondance = {"c": "close", "f": "far"}
     fig1.savefig("figures/immersion-factor-{0}.pdf".format(optics_correspondance[answer.lower()]), format="pdf", dpi=600)
     fig1.savefig("figures/immersion-factor-{0}.png".format(optics_correspondance[answer.lower()]), format="png", dpi=600)
+    fig1.savefig("figures/immersion-factor-{0}.jpg".format(optics_correspondance[answer.lower()]), format="jpg", dpi=600)
 
     # Saving results
     save_file = process.save_results()

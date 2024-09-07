@@ -4,6 +4,7 @@ Script to build roll-off figures.
 """
 
 # Module importation
+import os
 import string
 import h5py
 import numpy as np
@@ -119,9 +120,11 @@ def show_roll_off(data_w, data_a, fig_ax=(None, None)):
     ax[0].set_ylim((0.2, 1.0338603520703975))
     ax[1].set_ylim((0.2, 1.0338603520703975))
 
-    ax[0].set_ylabel(r"$R(\theta)$")
+    #ax[0].set_ylabel(r"$R(\theta)$")
+    ax[0].set_ylabel(r"$g(\theta)$")
     ax[1].set_xlabel(r"$\theta$ [˚]")
-    ax[1].set_ylabel(r"$R(\theta)$")
+    #ax[1].set_ylabel(r"$R(\theta)$")
+    ax[1].set_ylabel(r"$g(\theta)$")
 
     fig.tight_layout()
     return fig, ax
@@ -160,15 +163,17 @@ def show_roll_off_both_medium(data_w, data_a, fig_ax=(None, None)):
     th_air = np.linspace(0, 90, 50)
     th_water = np.linspace(0, 75, 50)
 
+    mark_s = 4
+
     for n in range(r0deg_a.shape[1]):
         # In-air
-        ax.plot(r0deg_a["a"][:, n], r0deg_a["DN_avg"][:, n], marker=marker_a[n], markersize=2.5, linestyle="none", markeredgecolor=colo_d[0], markerfacecolor="none", alpha=0.9, label=r"air " + lab[n])
-        ax.plot(r90deg_a["a"][:, n], r90deg_a["DN_avg"][:, n], marker=marker_a[n], markersize=2.5, linestyle="none", markeredgecolor=colo_d[0], markerfacecolor="none", alpha=0.9)
+        ax.plot(r0deg_a["a"][:, n], r0deg_a["DN_avg"][:, n], marker=marker_a[n], markersize=mark_s, linestyle="none", markeredgecolor=colo_d[0], markerfacecolor="none", alpha=0.9, label=r"air " + lab[n])
+        ax.plot(r90deg_a["a"][:, n], r90deg_a["DN_avg"][:, n], marker=marker_a[n], markersize=mark_s, linestyle="none", markeredgecolor=colo_d[0], markerfacecolor="none", alpha=0.9)
 
     for n in range(r0deg_w.shape[1]):
         # In-water
-        ax.plot(r0deg_w["a"][:, n], r0deg_w["DN_avg"][:, n], marker=marker_w[n], markersize=2.5, linestyle="none", markeredgecolor=colo_d[1], markerfacecolor="none", alpha=0.9, label=r"water " + lab[n])
-        ax.plot(r90deg_w["a"][:, n], r90deg_w["DN_avg"][:, n], marker=marker_w[n], markersize=2.5, linestyle="none", markeredgecolor=colo_d[1], markerfacecolor="none", alpha=0.9)
+        ax.plot(r0deg_w["a"][:, n], r0deg_w["DN_avg"][:, n], marker=marker_w[n], markersize=mark_s, linestyle="none", markeredgecolor=colo_d[1], markerfacecolor="none", alpha=0.9, label=r"water " + lab[n])
+        ax.plot(r90deg_w["a"][:, n], r90deg_w["DN_avg"][:, n], marker=marker_w[n], markersize=mark_s, linestyle="none", markeredgecolor=colo_d[1], markerfacecolor="none", alpha=0.9)
 
     for n in range(r0deg_a.shape[1]):
         # In-air
@@ -191,10 +196,11 @@ def show_roll_off_both_medium(data_w, data_a, fig_ax=(None, None)):
     ax.set_ylim((0.2, 1.0338603520703975))
     ax.set_ylim((0.2, 1.0338603520703975))
 
-    ax.set_ylabel(r"$R(\theta)$")
+    #ax.set_ylabel(r"$R(\theta)$")
+    ax.set_ylabel(r"$g(\theta)$")
     ax.set_xlabel(r"$\theta$ [˚]")
 
-    ax.legend(fontsize=6, ncol=2, frameon=False)
+    ax.legend(fontsize=7, ncol=2, frameon=False)
 
     fig.tight_layout()
 
@@ -239,20 +245,25 @@ if __name__ == "__main__":
     print(rel_err_air.mean(axis=0))
 
     # Figures
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
+
 
     #fig1, ax1 = plt.subplots(2, 1, sharex=True, figsize=ff.set_size(subplots=(1, 1), height_ratio=0.9))
     #fig1 = plt.figure(figsize=ff.set_size(subplots=(2, 1), fraction=0.7))
+    figsize_inch = (84 * 1.5) / 25.4
     fig1, ax1 = plt.subplots(2, 1, sharex=True, figsize=ff.set_size(fraction=0.75, height_ratio=1))
-    fig2, ax2 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7, height_ratio=0.7))
+    #fig2, ax2 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7, height_ratio=0.7))
+    fig2, ax2 = plt.subplots(1, 1, figsize=(figsize_inch, figsize_inch * 0.6))
 
     # Plot figure
     fig1, ax1 = show_roll_off(data_water, data_air, fig_ax=(fig1, ax1))
     fig2, ax2 = show_roll_off_both_medium(data_water, data_air, fig_ax=(fig2, ax2))
+    ax2.set_rasterized(True)
 
     # Saving figure
     fig1.savefig("figures/roll-off-air-water-{0}.png".format(wlens), format="png", dpi=600)
     fig2.savefig("figures/roll-off-air-water-sf-{0}.png".format(wlens), format="png", dpi=600)
+    fig2.savefig("figures/roll-off-air-water-sf-{0}.jpg".format(wlens), format="jpg", dpi=600)
     fig2.savefig("figures/roll-off-air-water-sf-{0}.pdf".format(wlens), format="pdf", dpi=600)
 
     plt.show()

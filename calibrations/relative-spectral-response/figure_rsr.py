@@ -4,6 +4,7 @@ File to construct the relative spectral response figure.
 """
 
 # Module importation
+import os
 import h5py
 import scipy
 import numpy as np
@@ -130,7 +131,8 @@ def format_figure_rsr(data_rsr, bandwidth=False):
     #ax.set_xlim(386.5, 705)
     #ax.grid()
     #ax.set_ylabel("$RSR_{i}(\lambda)$")
-    ax.set_ylabel("Relative spectral response, $RSR_{i}$")
+    #ax.set_ylabel("Relative spectral response, $RSR_{i}$")
+    ax.set_ylabel("Relative spectral response, $S_{R,i}$")
     ax.set_xlabel("Wavelength [nm]")
     #ax.legend(loc="best", fontsize=7, frameon=False)
 
@@ -141,8 +143,10 @@ def format_figure_rsr(data_rsr, bandwidth=False):
 
 def two_curves_one_graph(data1, data2, shaded=False):
 
-    ff = FigureFunctions()
-    fig, ax = plt.subplots(figsize=ff.set_size(443.86319, fraction=0.7))
+    #ff = FigureFunctions()
+    #fig, ax = plt.subplots(figsize=ff.set_size(443.86319, fraction=0.7))
+    figs_inch = 84 / 25.54
+    fig, ax = plt.subplots(figsize=(figs_inch, figs_inch * 0.7))
 
     # Data
     rsr1 = data1["rsr_peak_norm"][:]
@@ -190,7 +194,7 @@ def two_curves_one_graph(data1, data2, shaded=False):
 if __name__ == "__main__":
 
     # Figure style
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
 
     # Open data
     data_c = h5py.File("calibrationfiles/rsr_20200610.h5")
@@ -208,8 +212,10 @@ if __name__ == "__main__":
     fig1, ax1 = format_figure_rsr(data_c, bandwidth=False)
     fig2, ax2 = format_figure_rsr(data_f, bandwidth=False)
     fig3, ax3 = format_figure_rsr(data_fluo["lens-close"], bandwidth=False)
+    ax3.set_rasterized(True)
     fig4, ax4 = two_curves_one_graph(data_c, data_f)
     fig5, ax5 = format_figure_rsr(data_fluo["lens-far"])
+
 
     dflu_lc = data_fluo["lens-close"]
     lstyle = ["-", "-.", ":"]
@@ -224,5 +230,7 @@ if __name__ == "__main__":
     fig1.savefig("figures/rsr_close.png", format="png", dpi=600)
     fig2.savefig("figures/rsr_far.png", format="png", dpi=600)
     fig3.savefig("figures/rsr_close_fluo.png", format="png", dpi=600)
+    fig3.savefig("figures/Fig.4.jpg", format='jpg', dpi=600)
+    fig3.savefig("figures/Fig.4.pdf", format='pdf', dpi=600)
 
     plt.show()

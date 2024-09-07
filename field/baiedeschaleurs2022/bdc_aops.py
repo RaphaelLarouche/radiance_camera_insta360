@@ -21,14 +21,15 @@ if __name__ == "__main__":
     ifb_st4 = get_ice_freeboard("data/station_4_data.txt")
 
     # Station 1
-    rc_st1 = RadClass(data_path="data/baiedeschaleurs-03232022.h5", station="station_1", data_type="camera", freeboard=ifb_st1)
+    rc_st1 = RadClass(data_path="data/baiedeschaleurs-03232022-imf-fluo.h5", station="station_1", data_type="camera", freeboard=ifb_st1)
     rc_st1.show_absorption_coefficient()
     rc_st1.show_mean_cosines()
 
     # Station 2
-    rc_st2 = RadClass(data_path="data/baiedeschaleurs-03232022.h5", station="station_2", data_type="camera", freeboard=ifb_st2)
+    rc_st2 = RadClass(data_path="data/baiedeschaleurs-03232022-imf-fluo.h5", station="station_2", data_type="camera", freeboard=ifb_st2)
     fa2, axa2 = rc_st2.show_absorption_coefficient()
     rc_st2.show_mean_cosines()
+    rc_st2.show_reflectance()
 
     # ****** Test == - increasing vertical resolution  ******
     enet = np.array(rc_st2.ed.tolist())[:, :-1] - np.array(rc_st2.eu.tolist())[:, :-1]
@@ -57,12 +58,12 @@ if __name__ == "__main__":
     # ******     ******
 
     # Station 3
-    rc_st3 = RadClass(data_path="data/baiedeschaleurs-03232022.h5", station="station_3", data_type="camera", freeboard=ifb_st3)
+    rc_st3 = RadClass(data_path="data/baiedeschaleurs-03232022-imf-fluo.h5", station="station_3", data_type="camera", freeboard=ifb_st3)
     rc_st3.show_absorption_coefficient()
     rc_st3.show_mean_cosines()
 
     # Station 4
-    rc_st4 = RadClass(data_path="data/baiedeschaleurs-03232022.h5", station="station_4", data_type="camera", freeboard=ifb_st4)
+    rc_st4 = RadClass(data_path="data/baiedeschaleurs-03232022-imf-fluo.h5", station="station_4", data_type="camera", freeboard=ifb_st4)
     rc_st4.show_absorption_coefficient()
     rc_st4.show_mean_cosines()
 

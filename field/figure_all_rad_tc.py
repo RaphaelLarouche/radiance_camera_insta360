@@ -3,6 +3,7 @@
 Figure angular radiance distributions in TC paper.
 """
 # Module importation
+import os
 import string
 import numpy as np
 import matplotlib.pyplot as plt
@@ -89,9 +90,9 @@ def graph_radiance_pts_vs_fit(rc_obj, hl_data, depths, fig_ax=None):
 
     ax[1].legend(loc=3, fontsize=7, frameon=False)
 
-    ax[0].annotate("MUAPD = {0:.2f} %\nRMSE = {1:.2f}%".format(mupd[0], rmse_tot[0]), (0.45, 0.9), xycoords="axes fraction", fontsize=6)
-    ax[1].annotate("MUAPD = {0:.2f} %\nRMSE = {1:.2f}%".format(mupd[1], rmse_tot[1]), (0.45, 0.9), xycoords="axes fraction", fontsize=6)
-    ax[2].annotate("MUAPD = {0:.2f} %\nRMSE = {1:.2f}%".format(mupd[2], rmse_tot[2]), (0.45, 0.9), xycoords="axes fraction", fontsize=6)
+    ax[0].annotate("MUPD = {0:.2f} %\nRMSE = {1:.2f}%".format(mupd[0], rmse_tot[0]), (0.45, 0.9), xycoords="axes fraction", fontsize=6)
+    ax[1].annotate("MUPD = {0:.2f} %\nRMSE = {1:.2f}%".format(mupd[1], rmse_tot[1]), (0.45, 0.9), xycoords="axes fraction", fontsize=6)
+    ax[2].annotate("MUPD = {0:.2f} %\nRMSE = {1:.2f}%".format(mupd[2], rmse_tot[2]), (0.45, 0.9), xycoords="axes fraction", fontsize=6)
 
     ax[0].annotate(f"{wl_cam[0]} nm", (0.20, 0.2), xycoords="axes fraction", fontsize=6)
     ax[1].annotate(f"{wl_cam[1]} nm", (0.20, 0.2), xycoords="axes fraction", fontsize=6)
@@ -103,22 +104,23 @@ def graph_radiance_pts_vs_fit(rc_obj, hl_data, depths, fig_ax=None):
 if __name__ == "__main__":
 
     # Freeboard
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../..")) + "/figurestyle.mplstyle")
     ifb_st2 = get_ice_freeboard("baiedeschaleurs2022/data/station_2_data.txt")
     label_st2 = np.array(list(create_label("baiedeschaleurs2022/data/station_2_data.txt").keys()))
 
     # BDC
-    rc_st2 = RadClass(data_path="baiedeschaleurs2022/data/baiedeschaleurs-03232022-fluo.h5", station="station_2", data_type="camera", freeboard=ifb_st2)
-    zd_st2 = rad_func.load_zenith_radiance(path=r"baiedeschaleurs2022/data/bdc_2_fit")
+    rc_st2 = RadClass(data_path="baiedeschaleurs2022/data/baiedeschaleurs-03232022-imf-fluo.h5", station="station_2", data_type="camera", freeboard=ifb_st2)
+    zd_st2 = rad_func.load_zenith_radiance(path=r"baiedeschaleurs2022/data/super_recu_bdc_fit_final")
 
     # ODEN
-    rc = RadClass(data_path="oden2018/data/oden-08312018-fluo.h5")
-    zd = rad_func.load_zenith_radiance(path=r"oden2018/data/oden_fit")
+    rc = RadClass(data_path="oden2018/data/oden-08312018-imf-fluo.h5")
+    zd = rad_func.load_zenith_radiance(path=r"oden2018/data/super_recu_oden_fit_final")
     d_oden = np.arange(20, 180, 20).astype(float)
     #d_oden = np.arange(0, 220, 20).astype(float)
     #d_oden = np.delete(d_oden, np.where(d_oden == 180))
 
     # Mask
-    mask_st2 = label_st2 >= ifb_st2
+    mask_st2 = (label_st2 >= ifb_st2) & (label_st2 <= 85.0)
 
     # Figures
     fig1, ax1 = graph_radiance_pts_vs_fit(rc_st2, zd_st2, label_st2[mask_st2])
@@ -143,7 +145,7 @@ if __name__ == "__main__":
 
     fig2.tight_layout()
 
-    #fig2.savefig("baiedeschaleurs2022/figures/rad_both_field_fluo.pdf", format="pdf", dpi=300)
-    #fig2.savefig("baiedeschaleurs2022/figures/rad_both_field_fluo.png", format="png", dpi=300)
+    fig2.savefig("baiedeschaleurs2022/figures/rad_both_field_imf_fluo.pdf", format="pdf", dpi=300)
+    fig2.savefig("baiedeschaleurs2022/figures/rad_both_field_imf_fluo.png", format="png", dpi=300)
 
     plt.show()

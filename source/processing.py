@@ -337,11 +337,6 @@ class ProcessImage:
         :param metadata: insta360 metadata
         :return: exposure time [s]
         """
-        #exptime = str(metadata['Image ExposureTime']).split("/")
-        #if len(exptime) == 2:
-        #    exptime = float(exptime[0]) / float(exptime[1])
-        #else:
-        #    exptime = float(exptime[0])
         if "Image ExposureTime" in metadata.keys():
             texp = float(metadata['Image ExposureTime'].values[0])
         else:
@@ -700,7 +695,6 @@ class FlameSpectrometer:
                 d_d = fi[groupname + "/" + "dark"][:].mean(axis=1)
             else:
                 d_d = fi[groupname + "/" + dname].attrs["Dark"]
-
             d_c = fi[groupname + "/" + dname][:]
             wave = fi[groupname + "/" + dname].attrs["Wavelengths"]
             t = fi[groupname + "/" + dname].attrs["Integration time us"]

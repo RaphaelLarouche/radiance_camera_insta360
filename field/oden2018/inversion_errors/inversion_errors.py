@@ -24,7 +24,7 @@ def load_depths(path):
     :param path: absolute path (str)
     :return: depths (list)
     """
-    with open(path + "\hermes.pickle", 'rb') as handle:
+    with open(path + "/hermes.pickle", 'rb') as handle:
         hermes = pickle.load(handle)
 
     return hermes['zetanom']
@@ -36,7 +36,7 @@ def show_iops(path_secret, path_fitted):
     #fit_data = pandas.read_csv(os.path.join(path_fitted, "eudos_iops.csv"))
 
     # Figure initialization
-    plt.style.use("../../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../../..")) + "/figurestyle.mplstyle")
     fig, ax = plt.subplots(1, 5, figsize=(6.6929, 6.6929 * 3/4 * 0.7), sharey=True)
 
     ax, er = plot_all_inv_data(ax, path_secret, path_fitted)
@@ -118,7 +118,7 @@ def show_inversion_errors(path_secret, path_fitted, S=True):
     fit_data = pandas.read_csv(os.path.join(path_fitted, "eudos_iops.csv"))
 
     # Figure initialization
-    plt.style.use("../../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../../..")) + "/figurestyle.mplstyle")
     if S:
         fig, ax = plt.subplots(2, 5, figsize=(6.6929, 6.6929 * 3/4), sharey=True)
     else:
@@ -244,7 +244,7 @@ def figure_inversion_err(p_secret, p_fitted, p_secret_noise, p_fitted_noise):
     """
 
     # Figure initialization
-    plt.style.use("../../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../../..")) + "/figurestyle.mplstyle")
 
     fig, ax = plt.subplots(2, 5, figsize=(6.6929, 6.6929 * 3/4), sharey=True)
 
@@ -460,20 +460,20 @@ if __name__ == "__main__":
     # Path of code
     path_code = os.path.dirname(os.path.abspath(__file__))
     # Path of secret data
-    rel_path_sdata1 = r"data\inversion_errors\fit_errors_1\secret_iops"  # difficult fit
-    rel_path_sdata = r"data\inversion_errors\fit_errors_2\secret_iops"
+    rel_path_sdata1 = r"data/inversion_errors/fit_errors_1/secret_iops"  # difficult fit
+    rel_path_sdata = r"data/inversion_errors/fit_errors_2/secret_iops"
     path_sdata1 = os.path.join(os.path.dirname(path_code), rel_path_sdata1)
     path_sdata = os.path.join(os.path.dirname(path_code), rel_path_sdata)
 
     # Path of fitted data
-    rel_path_fdata1 = r"data\inversion_errors\fit_errors_1\secret_irradiance_fit"  # difficult fit
-    rel_path_fdata = r"data\inversion_errors\fit_errors_2\secret_irradiance_fit"
+    rel_path_fdata1 = r"data/inversion_errors/fit_errors_1/secret_irradiance_fit"  # difficult fit
+    rel_path_fdata = r"data/inversion_errors/fit_errors_2/secret_irradiance_fit"
     path_fdata1 = os.path.join(os.path.dirname(path_code), rel_path_fdata1)
     path_fdata = os.path.join(os.path.dirname(path_code), rel_path_fdata)
 
     # Inversion error with noise
-    rel_path_sdata_noise = r"data\inversion_errors\fit_errors_plus_noise_2\original_files"
-    rel_path_fdata_noise = r"data\inversion_errors\fit_errors_plus_noise_2\fit_files"
+    rel_path_sdata_noise = r"data/inversion_errors/fit_errors_plus_noise_2/original_files"
+    rel_path_fdata_noise = r"data/inversion_errors/fit_errors_plus_noise_2/fit_files"
 
     path_sdata_noise = os.path.join(os.path.dirname(path_code),  rel_path_sdata_noise)
     path_fdata_noise = os.path.join(os.path.dirname(path_code),  rel_path_fdata_noise)

@@ -63,10 +63,10 @@ if __name__ == "__main__":
     ff = proccessing.FigureFunctions()
 
     # Which cam conditions
-    sn = "2BW7X7"
-    cover = "cover"
+    sn = "2C9JCA"
+    cover = "nocover"
     which_lens = "back"
-    date = "20230407"
+    date = "20230323"
 
     # General path to all data
     #path = process.folder_choice() + r"\data-i360\calibrations\absolute-radiance\09082020"
@@ -93,6 +93,10 @@ if __name__ == "__main__":
     w_s, spectral_rad_00, spectral_rad_00_unc, cops_wl, cops_val = spectro.source_spectral_radiance("labsphere", [589, 589], 1)
     _, spectral_rad_10, _, _, _ = spectro.source_spectral_radiance("labsphere", [589, 589], 0)
     #_, spectral_rad_45, _ , _, _ = spectro.source_spectral_radiance("labsphere", [589, 589, 589], 2)
+
+    # Immersion coefficient
+    immersion_factor_bsph_589 = 0.5761
+    spectral_rad_00 *= immersion_factor_bsph_589
 
     condwl = (w_s <= 700) & (w_s >= 400)
     spectral_rad_norm_00 = spectral_rad_00 / replica_trapz(w_s, spectral_rad_00)
@@ -123,7 +127,7 @@ if __name__ == "__main__":
     imdownsampling = 250
 
     # Pre-allocation
-    plt.style.use("../../figurestyle.mplstyle")
+    #plt.style.use("../../figurestyle.mplstyle")
 
     dn_avg = np.empty(3)
     dn_std = np.empty(3)
@@ -301,6 +305,15 @@ if __name__ == "__main__":
     fig2.tight_layout()
     fig3.tight_layout()
     fig5.tight_layout()
+
+    # Save data
+    filename = f"absolute-radiance-{sn}.h5"
+    pathname = "calibrationfiles/" + filename
+    group_name = f"{cover}/{which_lens}/{date}"
+
+    saved_answer = process.save_results()
+    if saved_answer == "y":
+        process.save_x3_hdf5(pathname, group_name, "cal-coefficients", coeff)
 
     # Saving results
     #correspond_optic = {"c": "close", "f": "far"}

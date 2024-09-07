@@ -64,9 +64,11 @@ def projection_curves_graph(calib, fig_ax=(None, None)):
     ax.plot(rmap.ravel(), ang_map.ravel(), marker="s", markersize=2, linestyle="none", markeredgecolor='#1b9e77', markerfacecolor="none", alpha=0.9, label="Reprojected points")
     ax.plot(radial_x, z_dws, linewidth=1.2, color='#1b9e77', linestyle="-.", label="Projection green band")
 
-    ax.plot(radial_x, stereo, linewidth=0.8, color="#a6cee3", label="Stereographic")
+    #ax.plot(radial_x, stereo, linewidth=1.2, color="black", linestyle='--', label="Stereographic")
+    #ax.plot(radial_x, orthograph, linewidth=1.2, color="gray", linestyle='--', label="Orthographic")
+    ax.plot(radial_x, stereo, linewidth=1.2, color="#a6cee3", label="Stereographic")
     #ax.plot(radial_x, equidis, linewidth=0.8, color="#1f78b4", label="Equidistant")
-    ax.plot(radial_x, orthograph, linewidth=0.8, color="#b2df8a", label="Orthographic")
+    ax.plot(radial_x, orthograph, linewidth=1.2, color="#b2df8a", label="Orthographic")
 
     ax.set_yticks(np.arange(-10, 110, 10))
     ax.set_ylim((-4.616729775163446, 96.95132527843236))
@@ -158,7 +160,7 @@ def spectral_aberrations(calib, fig_ax=(None, None)):
         df = zen - zen_ref
         print('Max {0}: {1:.4f}'.format(lab[i], np.absolute(df).max()))
 
-        ax.plot(radial_x, df, linestyle=lstyle[i], linewidth=1.0, color=colo[i], label=lab[i])
+        ax.plot(radial_x, df, linestyle=lstyle[i], linewidth=1.2, color=colo[i], label=lab[i])
 
     ax.set_xlabel(r"Radial distance $\rho$ [px]")
     ax.set_ylabel(r"$\theta_{i}-\theta_{green}$ [˚]")
@@ -169,7 +171,8 @@ def spectral_aberrations(calib, fig_ax=(None, None)):
 
 if __name__ == "__main__":
 
-    plt.style.use("../../figurestyle.mplstyle")
+    #plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
 
     ff = FigureFunctions()
 
@@ -250,6 +253,10 @@ if __name__ == "__main__":
 
     fig1.savefig("figures/geometric_close.png", format="png", dpi=600)
     fig2.savefig("figures/geo_close_no_reproj_err.png", format="png", dpi=600)
+    fig2.savefig("figures/geo_close_no_reproj_err.jpg", format="jpg", dpi=600)
+    fig2.savefig("figures/geo_close_no_reproj_err.pdf", format="pdf", dpi=600)
     fig3.savefig("figures/reproj_err.png", format="png", dpi=600)
+    fig3.savefig("figures/reproj_err.jpg", format="jpg", dpi=600)
+    fig3.savefig("figures/reproj_err.pdf", format="pdf", dpi=600)
 
     plt.show()

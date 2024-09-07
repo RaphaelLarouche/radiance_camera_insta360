@@ -4,6 +4,7 @@ Oden icebreaker A02018 mission, cam optic vertical stack of radiance angular dis
 """
 
 # Module importation
+import os
 import string
 import numpy as np
 import matplotlib.pyplot as plt
@@ -155,7 +156,7 @@ def vertical_stack_radiance_v2(data_keys, dkeys_polar, ncontour):
 
     # Open spectral radiance angular distribution
     #rc = RadClass(data_path="data/oden-08312018.h5")
-    rc = RadClass(data_path="data/oden-08312018-fluo.h5")
+    rc = RadClass(data_path="data/oden-08312018-imf-fluo.h5")
     x, y = rc.zenith_meshgrid * np.cos(rc.azimuth_meshgrid * np.pi / 180), rc.zenith_meshgrid * np.sin(rc.azimuth_meshgrid * np.pi / 180)
 
     # Figure initialization
@@ -227,13 +228,13 @@ def vertical_stack_radiance_v2(data_keys, dkeys_polar, ncontour):
 
 if __name__ == "__main__":
 
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
 
     # Figure 1
     #fig1, ax1 = vertical_stack_radiance(["40 cm", "80 cm", "120 cm", "160 cm"], "40 cm", 15)
     fig1, ax1 = vertical_stack_radiance_v2(["40.0 cm", "80.0 cm", "120.0 cm", "160.0 cm"], "40.0 cm", 15)
 
-    fig1.savefig("figures/vertical_stack.pdf", format="pdf", dpi=300)
-    fig1.savefig("figures/vertical_stack.png", format="png", dpi=300)
+    fig1.savefig("figures/vertical_stack.pdf", format="pdf", dpi=600)
+    fig1.savefig("figures/vertical_stack.png", format="png", dpi=600)
 
     plt.show()

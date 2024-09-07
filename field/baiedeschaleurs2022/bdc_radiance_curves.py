@@ -107,7 +107,7 @@ def graph_radiance_curves(radiances, zenith, depth_keys_ordered):
 if __name__ == "__main__":
 
     # Load data
-    data = load_dict_from_hdf5(filename="data/baiedeschaleurs-03232022.h5")
+    data = load_dict_from_hdf5(filename="data/baiedeschaleurs-03232022-imf-fluo.h5")
 
     label_st1 = list(create_label("data/station_1_data.txt").keys())
     label_st2 = list(create_label("data/station_2_data.txt").keys())

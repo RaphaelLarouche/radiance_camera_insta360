@@ -199,7 +199,7 @@ if __name__ == "__main__":
     # Parameters
     sn = "2C9JCA"
     cover = "nocover"
-    wlens = "front"
+    wlens = "back"
     date = "20230412"
 
     # Open geometric calibration
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     im_air_dws = process.dwnsampling(im_air_stack.mean(axis=2), "GBRG")
 
     # ______ Loops
-    plt.style.use("../../figurestyle.mplstyle")
+    #plt.style.use("../../figurestyle.mplstyle")
 
     z = water_level - camera_z
 
@@ -334,6 +334,7 @@ if __name__ == "__main__":
     #fig1, ax1 = plt.subplots(3, 1, figsize=(ff.set_size(subplots=(2, 1), fraction=0.7)[0], ff.set_size(subplots=(2, 1))[1] * 0.8))
     #fig1, ax1 = plt.subplots(1, 3, figsize=(ff.set_size(subplots=(1, 3))), sharey=True)
     fig1, ax1 = plt.subplots(1, 3, figsize=(ff.set_size(height_ratio=0.45)), sharey=True)
+    fig3, ax3 = plt.subplots(1, 1)
 
     linestl = ["-", "-.", ":"]
     col = ['#d95f02', '#1b9e77', '#7570b3']
@@ -352,6 +353,10 @@ if __name__ == "__main__":
         ax1[b].plot((slope * z_graph + intercept), z_graph, linestyle=linestl[b], color=col[b], label="Linear fit")
         #ax1[b].text(np.log(dn_water_zero[:, b]) * 1.01, 3, tx.format(slope, stderror * 1.96, intercept, std_int * 1.96, rval**2), fontsize=7)
         #ax1[b].text(np.log(dn_water_mean[-2, b]), 2, tx.format(slope, stderror * 1.96, intercept, std_int * 1.96, rval ** 2), fontsize=7)
+
+        curves = (slope * z_graph + intercept)
+        ax3.plot(curves/curves.max(), z_graph, linestyle=linestl[b], color=col[b], label="Linear fit")
+
 
     immersion = dn_air_mean.ravel() / dn_water_zero
 
@@ -409,13 +414,24 @@ if __name__ == "__main__":
     #ax3.plot(effective_wavelength, n_glass_inverse)
     #ax3.plot(nwHale[:, 0], nNBK7)
 
-    #ax3.set_xlabel("Wavelength [nm]")
-    #ax3.set_ylabel("refractive index")
+    ax3.invert_yaxis()
+    ax3.set_xlabel("$\ln~DN_{i}$")
+    ax3.set_ylabel("z [cm]")
 
     # Saving figures
     fig1.tight_layout()
+    fig3.tight_layout()
 
-    optics_correspondance = {"c": "close", "f": "far"}
+    # Save data
+    filename = f"immersion-factor-{sn}.h5"
+    pathname = "calibrationfiles/" + filename
+    group_name = f"{cover}/{wlens}/{date}"
+
+    saved_answer = process.save_results()
+    if saved_answer == "y":
+        process.save_x3_hdf5(pathname, group_name, "immersion-factor", immersion)
+
+    #optics_correspondance = {"c": "close", "f": "far"}
     # Saving results
     #save_file = process.save_results()
 

@@ -11,6 +11,8 @@ import deepdish
 import h5py
 import numpy as np
 import skimage.measure
+import matplotlib
+matplotlib.use("macosx")
 import matplotlib.pyplot as plt
 
 # Other modules
@@ -52,18 +54,63 @@ def replica_trapz(x, y):
     else:
         return np.sum((y[1:] + y[:-1]) * diff[:, None] / 2, axis=0)
 
+def spheri2cart(zeni, azi):
+
+    z = zeni * np.pi / 180
+    az = azi * np.pi / 180
+
+    X = np.sin(z) * np.cos(az)
+    Y = np.sin(z) * np.sin(az)
+    Z = np.cos(z)
+
+    return X, Y, Z
+
+
+def Rx(theta):
+    return np.matrix([[1, 0, 0],
+                      [0, np.cos(theta), -np.sin(theta)],
+                      [0, np.sin(theta), np.cos(theta)]])
+
+
+def Ry(theta):
+    return np.matrix([[np.cos(theta), 0, np.sin(theta)],
+                      [0, 1, 0],
+                      [-np.sin(theta), 0, np.cos(theta)]])
+
+
+def Rz(theta):
+    return np.matrix([[np.cos(theta), -np.sin(theta), 0],
+                      [np.sin(theta), np.cos(theta), 0],
+                      [0, 0, 1]])
+
+
+def coordinates_rotation(zenith, azimuth, zeni_ro, azi_ro):
+
+    X, Y, Z = spheri2cart(zenith, azimuth)
+    XYZ = np.stack((X.ravel(), Y.ravel(), Z.ravel()))
+    Rot = Ry(-zeni_ro * np.pi / 180) * Rz(-azi_ro * np.pi / 180)
+
+    newXYZ = np.matmul(Rot, XYZ)
+    nX = np.array(newXYZ[0, :].reshape(X.shape))
+    nY = np.array(newXYZ[1, :].reshape(Y.shape))
+    nZ = np.array(newXYZ[2, :].reshape(Z.shape))
+
+    return np.arctan2(np.sqrt(nX ** 2 + nY ** 2), nZ) * 180/np.pi
+
 
 if __name__ == "__main__":
+
+    # General path to all data
+    volume_path = "/Volumes/MYBOOK"
+    path = volume_path + r"/data-i360/calibrations/absolute-radiance/09082020"
+    path_i360 = os.path.dirname(os.path.dirname(__file__))
+    plt.style.use(os.path.dirname(path_i360) + "/figurestyle.mplstyle")
 
     # Instance of ProcessImage
     process = proccessing.ProcessImage()
 
     # Instance of FigureFunctions
     ff = proccessing.FigureFunctions()
-
-    # General path to all data
-    path = process.folder_choice() + r"\data-i360\calibrations\absolute-radiance\09082020"
-    path_i360 = os.path.dirname(os.path.dirname(__file__))
 
     # Choice of camera
     while True:
@@ -111,6 +158,14 @@ if __name__ == "__main__":
     w_s, spectral_rad_35, _, _, _ = spectro.source_spectral_radiance("labsphere", [589, 589, 589], 1)
     _, spectral_rad_45, _ , _, _ = spectro.source_spectral_radiance("labsphere", [589, 589, 589], 2)
 
+
+    # Applying immersion factor
+    immersion_factor_bsph_589 = 0.5761
+    spectral_rad_15 *= immersion_factor_bsph_589
+    spectral_rad_35 *= immersion_factor_bsph_589
+    spectral_rad_45 *= immersion_factor_bsph_589
+    cops_val *= immersion_factor_bsph_589
+
     condwl = (w_s <= 700) & (w_s >= 400)
     spectral_rad_norm_15 = spectral_rad_15 / replica_trapz(w_s, spectral_rad_15)
     _, rad_planck_norm = radiance_planck(w_s, 2796)
@@ -141,7 +196,6 @@ if __name__ == "__main__":
     imdownsampling = 250
 
     # Pre-allocation
-    plt.style.use("../../figurestyle.mplstyle")
 
     dn_avg = np.empty(3)
     dn_std = np.empty(3)
@@ -158,9 +212,15 @@ if __name__ == "__main__":
 
         im = im_dws[:, :, i]
         curr_geo = geo[channel_correspondance[i]]
-        _, z, _ = curr_geo.angular_coordinates()
+        _, z, azimut_c = curr_geo.angular_coordinates()
 
-        maskdegree = z <= zenith_max
+        azi_center = azimut_c[int(np.round(curr_geo.center[1])), int(np.round(curr_geo.center[0]))]
+        print(azi_center)
+        #new_zenith = coordinates_rotation(z, azimut_c, 10.0, 90.0)
+        new_zenith = coordinates_rotation(z, azimut_c, 0.0, 0.0)
+
+        #maskdegree = z <= zenith_max
+        maskdegree = new_zenith <= zenith_max
 
         dn_avg[i] = im[maskdegree].mean()
         dn_std[i] = im[maskdegree].std()
@@ -201,7 +261,8 @@ if __name__ == "__main__":
         # Images
         imsh_f5 = ax5[i].imshow(im)  # vmin=dn_avg[i]*0.9, vmax=dn_avg[i]*1.1
         cb_f5 = fig.colorbar(imsh_f5, ax=ax5[i], orientation="horizontal", fraction=0.046, pad=0.04)
-        cb_f5.set_label("$DN_{i}$ [ADU]", fontsize=9)
+        #cb_f5.set_label("$DN_{i}$ [ADU]", fontsize=9)
+        cb_f5.set_label("$y_{DN,i}$ [ADU]", fontsize=9)
 
         draw_circle_f5 = plt.Circle((region[0].centroid[1], region[0].centroid[0]), region[0].equivalent_diameter / 2,
                                  fill=False, linestyle=":")
@@ -255,6 +316,8 @@ if __name__ == "__main__":
 
     cvf = np.array([2.397e-8, 8.460e-9, 1.362e-8])
 
+    print(100 * (cvf - coeff)/cvf)
+
     # Uncertainty on calibration coefficient
     unc_effective_rad = np.interp(effective_lambda, w_s, spectral_rad_15_unc)
     unc_coeff = np.sqrt((unc_effective_rad) ** 2 + (dn_std / dn_avg) ** 2)
@@ -283,11 +346,14 @@ if __name__ == "__main__":
 
     # Figure 2
     #fig2, ax2 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.7))
+    #figsize_inch = 84 / 25.4
+    figsize_inch = 3.30709
     fig2, ax2 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.6, height_ratio=0.75))
+    #fig2, ax2 = plt.subplots(1, 1, figsize=(3.30709, 3.30709 * 0.75))
 
     ax2.plot(w_s[condwl], spectral_rad_15[condwl], color="k", label="$L_{source}(\lambda)$")
     ax2.fill_between(w_s[condwl], spectral_rad_15[condwl] * (1 - spectral_rad_15_unc[condwl]), spectral_rad_15[condwl] * (1 + spectral_rad_15_unc[condwl]), color="gray", alpha=0.6)
-    ax2.plot(cops_wl, cops_val,  color="k", marker="d", markersize=6, linestyle="None", markeredgecolor="k", markerfacecolor="none", label="C-OPS at 589 nm")
+    ax2.plot(cops_wl, cops_val,  color="k", marker="d", markersize=6, linestyle="None", markeredgecolor="k", markerfacecolor="none", label="C-OPS radiance at 589 nm")
     ax2.errorbar(effective_lambda, effective_rad, xerr=replica_trapz(wl_rsr, rsr) / 2, color="k", marker="o", markersize=5, linestyle="None", markeredgecolor="k", markerfacecolor="none", label="$\overline{L}_{i, source}$")
 
     #marker = ["o", "s", "^"]
@@ -303,7 +369,7 @@ if __name__ == "__main__":
     ax2.set_xlabel("Wavelength [nm]")
     ax2.set_ylabel("$L~[\mathrm{W \cdot sr^{-1} \cdot m^{-2} \cdot nm^{-1}}]$")
 
-    ax2.legend(loc='lower right')
+    ax2.legend(loc='lower right', frameon=False)
 
     # Figure 3 - uncertainties of the Ocean Optic calibration source
     fig3, ax4 = plt.subplots(1, 1, figsize=ff.set_size())
@@ -333,17 +399,25 @@ if __name__ == "__main__":
                  bbox_inches='tight')
     fig2.savefig("figures/spectral_radiance_{}.png".format(correspond_optic[answer.lower()]), format="png", dpi=600,
                  bbox_inches='tight') # png
+    fig2.savefig("figures/spectral_radiance_{}.jpg".format(correspond_optic[answer.lower()]), format="jpg", dpi=600,
+                 bbox_inches='tight')
+    fig2.savefig("figures/spectral_radiance_{}.pdf".format(correspond_optic[answer.lower()]), format="pdf", dpi=600,
+                 bbox_inches='tight')
 
     fig5.savefig("figures/output_sphere_1row_{}.png".format(correspond_optic[answer.lower()]), format="png", dpi=600,
                  bbox_inches='tight')  # png
+    fig5.savefig("figures/output_sphere_1row_{}.jpg".format(correspond_optic[answer.lower()]), format="jpg", dpi=600,
+                 bbox_inches='tight')  # jpg
+    fig5.savefig("figures/output_sphere_1row_{}.pdf".format(correspond_optic[answer.lower()]), format="pdf", dpi=600,
+                 bbox_inches='tight')  # jpg
 
     # Saving calibration
     if save_answer == "y":
 
-        filename = "absolute_radiance_fluorolog" + ".h5"
+        filename = "absolute_radiance_imf_fluorolog" + ".h5"
         pathname = "calibrationfiles/" + filename
 
-        timestr = time.strftime("%Y%m%d", time.localtime(os.stat(imlist[0])[-1]))
+        timestr = time.strftime("%Y%m%d", time.localtime(os.path.getmtime(imlist[0])))
 
         correspond_optic = {"c": "close", "f": "far"}
 

@@ -252,9 +252,9 @@ if __name__ == "__main__":
 
     # Choosing lens
     cover = "nocover"
-    sn = "2BW7X7"
+    sn = "2C9JCA"
     wlens = "back"
-    date = "20230313"
+    date = "20230330"
     generalpath = f"/Volumes/MYBOOK/data-i360X3/calibrations/relative_spectral_response/{sn}/{cover}/{wlens}/{date}"
 
     # Geometric
@@ -303,9 +303,10 @@ if __name__ == "__main__":
     nzen_g = coordinates_rotation(zen_green, az_green, zen_green[y, x], az_green[y, x])
     nzen_b = coordinates_rotation(zen_blue, az_blue, zen_blue[y, x], az_blue[y, x])
 
-    mask_ang = np.stack([nzen_r, nzen_b, nzen_b], axis=2)
+    mask_ang = np.stack([nzen_r, nzen_g, nzen_b], axis=2)
     #mask_ang = mask_ang < 1.0
-    mask_ang = mask_ang < 0.7
+    #mask_ang = mask_ang < 0.7
+    mask_ang = mask_ang < 0.3
 
     #data = rsr_fct.stack_roidata(stack, pixel_roi, np.array([873, 893]), exptime=exptime)
     #data = rsr_fct.stack_roidata(stack, pixel_roi, np.array([873, 893]), exptime=exptime)
@@ -419,6 +420,13 @@ if __name__ == "__main__":
     # Image
     imrgb = stack_15 - image_ambiance[:, :, None]
     imrgb = process_im.dwnsampling(np.clip(imrgb.mean(axis=2), 0, None) , "GBRG")
+
+    angles_green = nzen_g[mask_ang[:, :, 1]].ravel()
+    intensities_green = imrgb[:, :, 1][mask_ang[:, :, 1]].ravel()
+    #mean_stack_15 = imrgb[:, :, 1][mask_ang[:, :, 1]].mean()
+    #absolute_diff_stack_15 = np.sort(np.absolute(imrgb[:, :, 1][mask_ang[:, :, 1]] - mean_stack_15))
+    #max_variation_stack_15 =
+
 
     ax3.imshow(imrgb[:, :, 1])
     ax3.imshow(mask_ang[:, :, 1], alpha=0.2)

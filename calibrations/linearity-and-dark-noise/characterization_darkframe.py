@@ -96,7 +96,7 @@ def plot_mean_histogram_exp(fig, ax, imagestack_dictionary, nbin, range, label):
         mask_range = (range[0] <= stack_mean) & (stack_mean <= range[1])
         data_range = stack_mean[mask_range]
         bincenter = (h[1][:-1] + h[1][1:]) / 2
-
+        print(bincenter[np.argmax(h[0])])
         popt, pcov = curve_fit(Gauss, bincenter, h[0]/h[0].max(), p0=[1, 800, 1])
 
         #plt.figure()
@@ -160,6 +160,10 @@ def plot_mean_histogram_iso(fig, ax, imagestack, nbin, range, label):
             h = np.histogram(stack_mean, bins=438, range=(600, 1100))
             mask_range = (600 <= stack_mean) & (stack_mean <= 1100)
             data_range = stack_mean[mask_range]
+        #elif k == "ISO1600":
+        #    h = np.histogram(stack_mean, bins=200, range=(700, 1000))
+        #    mask_range = (700 <= stack_mean) & (stack_mean <= 1000)
+        #    data_range = stack_mean[mask_range]
         else:
             h = np.histogram(stack_mean, bins=int(nbin), range=range)
             mask_range = (range[0] <= stack_mean) & (stack_mean <= range[1])
@@ -180,7 +184,7 @@ def plot_mean_histogram_iso(fig, ax, imagestack, nbin, range, label):
 
     cb = fig.colorbar(dcax, ax=ax, orientation="vertical", fraction=0.05, pad=0.04)
     cb.ax.set_yticklabels(["{0:.0f}".format(i) for i in np.sort(np.array(list(label.values())))])
-    cb.ax.set_title("ISO", fontsize=8)
+    cb.ax.set_title("$S_{ISO}$", fontsize=8)
 
     return ax, mu_i, sigma_i, real_mu_i, real_sigma_i
 
@@ -228,7 +232,7 @@ if __name__ == "__main__":
 
     # if Windows:
     # General path MYBOOK
-    gen_path = ProcessImage.folder_choice()
+    gen_path = '/Volumes/MYBOOK'
     path_ex = gen_path + "/data-i360/calibrations/darkframe/integration-time"  # exposure path
     path_iso = gen_path + "/data-i360/calibrations/darkframe/iso-gain"  #iso gain
 
@@ -240,18 +244,18 @@ if __name__ == "__main__":
     imstack_iso, exp_iso, iso_iso = loop_imagestack(dict_images_iso, which="close")
 
     # Figures
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
 
     # Fig1 - histogram
     #fig1, ax1 = plt.subplots(1, 2, figsize=ff.set_size(height_ratio=0.45), sharey=True)
     fig1, ax1 = plt.subplots(2, 2, figsize=ff.set_size(height_ratio=0.8), sharey=False)
 
     ax1[0, 0], mu_exp, sigma_exp, real_mu_exp, real_sigma_exp = plot_mean_histogram_exp(fig1, ax1[0, 0], imstack_exp, 75, (790, 810), exp_exp)
-    ax1[0, 0].text(798, 3000, "$\mathrm{{ISO}} = {0}$".format(int(iso_exp["1_4000s"])), fontsize=7)
+    ax1[0, 0].text(798, 3000, "$S_{{ISO}} = {0}$".format(int(iso_exp["1_4000s"])), fontsize=7)
 
     #ax1[0, 0].set_xticks(np.arange(780, 820, 5))
     #ax1[0, 0].set_xlim((789.1466666666666, 810.8533333333334))
-    ax1[0, 0].set_xlabel("Pixel-wise averaged $DN$ [ADU]")
+    ax1[0, 0].set_xlabel("Pixel-wise averaged $y_{DN}$ [ADU]")
     ax1[0, 0].set_ylabel("Counts")
     ax1[0, 0].set_aspect('auto')
     #ax1[0].legend(loc="best", fontsize=9)
@@ -264,7 +268,7 @@ if __name__ == "__main__":
 
     #ax1[0, 1].set_yticks(ax1[0, 0].get_yticks())
     #ax1[0, 1].set_ylim((0.7, 5*10**6))
-    ax1[0, 1].set_xlabel("Pixel-wise averaged $DN$ [ADU]")
+    ax1[0, 1].set_xlabel("Pixel-wise averaged $y_{DN}$ [ADU]")
     ax1[0, 1].set_ylabel("Counts")
     ax1[0, 1].set_aspect('auto')
     #ax1[1].legend(loc="best", fontsize=9)
@@ -282,13 +286,13 @@ if __name__ == "__main__":
     ax1[1, 0].set_ylim((799.90, 802.1))
     ax1[1, 0].set_xticks(np.array([10**-4, 10**-3, 10**-2, 10**-1, 10**0]))
     ax1[1, 0].set_xlim((0.00015950898792959354, 3.134617195566509))
-    ax1[1, 0].set_ylabel(r"$\mu_{DN}$ [ADU]")
+    ax1[1, 0].set_ylabel(r"$\mu_{y_{DN}}$ [ADU]")
     ax1[1, 0].set_xlabel("$t_{int}~\mathrm{[s]}$")
 
     ax2_2 = ax1[1, 0].twinx()
     ax2_2.plot(exp_exp.values(), sigma_exp, marker=marker[1], markersize=5, linestyle=ls[1], color=col, markerfacecolor="none", markeredgecolor=col)
     #ax2_2.set_ylim((-1, 26))
-    ax2_2.set_ylabel(r'$\sigma_{DN}$ [ADU]', color=col)
+    ax2_2.set_ylabel(r'$\sigma_{y_{DN}}$ [ADU]', color=col)
     ax2_2.tick_params(axis='y', labelcolor=col)
 
     # Figure ISO gain vs. average and std
@@ -296,14 +300,14 @@ if __name__ == "__main__":
     ax1[1, 1].plot(np.array(list(iso_iso.values())[::-1]), mu_iso, marker=marker[0], markersize=5, linestyle=ls[0], color="k", markerfacecolor="none", markeredgecolor="k")
 
     ax1[1, 1].set_ylim((799, 826))
-    ax1[1, 1].set_ylabel(r"$\mu_{DN}$ [ADU]")
-    ax1[1, 1].set_xlabel("ISO")
+    ax1[1, 1].set_ylabel(r"$\mu_{y_{DN}}$ [ADU]")
+    ax1[1, 1].set_xlabel("$S_{ISO}$")
 
     ax11_2 = ax1[1, 1].twinx()
     #ax11_2.set_yticks(np.arange(-20, 140, 20))
     ax11_2.set_ylim((-1, 41))
     ax11_2.plot(np.array(list(iso_iso.values())[::-1]), sigma_iso, markersize=5, marker=marker[1], linestyle=ls[1], color=col, markerfacecolor="none", markeredgecolor=col)
-    ax11_2.set_ylabel(r'$\sigma_{DN}$ [ADU]', color=col)
+    ax11_2.set_ylabel(r'$\sigma_{y_{DN}}$ [ADU]', color=col)
     ax11_2.tick_params(axis='y', labelcolor=col)
 
     ax1[0, 0].text(0.02, 0.90, "(" + string.ascii_lowercase[0] + ")", transform=ax1[0, 0].transAxes, size=11, weight='bold')
@@ -313,8 +317,42 @@ if __name__ == "__main__":
 
     fig1.tight_layout(h_pad=1)
 
+    # All Exposure time histograms
+    for t in imstack_iso.keys():
+
+        average_darkimages = imstack_iso[t].mean(axis=2)
+        range_darkimages = int(np.floor(average_darkimages.min())), int(np.ceil(average_darkimages.max()))
+        nbin = range_darkimages[1] - range_darkimages[0]
+        histo = np.histogram(average_darkimages, bins=int(nbin+1), range=range_darkimages)
+        bcenter = (histo[1][:-1] + histo[1][1:]) / 2
+        print(bcenter[histo[0].argmax()])
+        popt, pcov = curve_fit(Gauss, bcenter, histo[0]/histo[0].sum(), p0=[1, 800, 1])
+        print(popt)
+        min_, max_ = 750, 1000
+        plt.figure()
+        plt.plot((histo[1][:-1] + histo[1][1:]) / 2, histo[0]/histo[0].sum())
+        plt.plot(np.linspace(min_, max_, 1000), Gauss(np.linspace(min_, max_, 1000), *popt))
+        plt.gca().set_xscale('log')
+        plt.gca().set_yscale('log')
+        plt.gca().set_xlim((min_, max_))
+        plt.gca().set_ylim((1e-7, 2.0))
+        plt.gca().set_title(t)
+
+    plt.figure()
+    for k in (imstack_iso.keys()):
+        a = []
+        for i in range(imstack_iso[k].shape[2]):
+            #print(imstack_iso[k][:, :, i].mean())
+            #print(imstack_iso[k][:, :, i].max())
+            #print(imstack_iso[k][:, :, i].min())
+            a.append(np.median(imstack_iso[k][:, :, i]))
+
+        plt.plot(np.arange(len(a)), a, linestyle="-", marker='.', label=k + f'avg-{np.mean(a):.3f} / {np.std(a):.3f} ')
+    plt.gca().legend(loc='best')
+
     # Saving figure
     fig1.savefig("figures/dark-histograms.pdf", format="pdf", dpi=600)
     fig1.savefig("figures/dark-histograms.png", format="png", dpi=600)
+    fig1.savefig("figures/dark-histograms.jpg", format="jpg", dpi=600)
 
     plt.show()

@@ -4,6 +4,7 @@ Linearity histogram. Pearson coefficient histogram.
 """
 
 # Importation of standard modules
+import os
 import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
@@ -164,7 +165,7 @@ if __name__ == "__main__":
     processimage = ProcessImage()
 
     # if windows:
-    volume_path = processimage.folder_choice()
+    volume_path = '/Volumes/MYBOOK/'
     filepath_exp = volume_path + "data-i360/calibrations/linearity/integration-time/"
     filepath_iso = volume_path + "data-i360/calibrations/linearity/iso-gain/"
 
@@ -215,14 +216,14 @@ if __name__ == "__main__":
     imstack_exp_bl, exp_bl, iso_bl, _ = processimage.imagestack(imlist_exp_bl, wlens)
 
     # Dark removal
-    imstack_exp -= bl_expln[None, None, :]
+    imstack_exp -= bl_expln.astype(float)[None, None, :]
     #imstack_exp[:, :, :4] -= np.stack((imstack_exp_bl[:, :, 0], imstack_exp_bl[:, :, 0], imstack_exp_bl[:, :, 0], imstack_exp_bl[:, :, 0]), axis=2)
     #imstack_exp[:, :, 4:8] -= np.stack((imstack_exp_bl[:, :, 1], imstack_exp_bl[:, :, 1], imstack_exp_bl[:, :, 1], imstack_exp_bl[:, :, 1]), axis=2)
     #imstack_exp[:, :, 8:12] -= np.stack((imstack_exp_bl[:, :, 2], imstack_exp_bl[:, :, 2], imstack_exp_bl[:, :, 2], imstack_exp_bl[:, :, 2]), axis=2)
     #imstack_exp[:, :, 12:16] -= np.stack((imstack_exp_bl[:, :, 3], imstack_exp_bl[:, :, 3], imstack_exp_bl[:, :, 3], imstack_exp_bl[:, :, 3]), axis=2)
     #imstack_exp[:, :, 16:20] -= np.stack((imstack_exp_bl[:, :, 4], imstack_exp_bl[:, :, 4], imstack_exp_bl[:, :, 4], imstack_exp_bl[:, :, 4]), axis=2)
     #imstack_exp[:, :, 20:24] -= np.stack((imstack_exp_bl[:, :, 5], imstack_exp_bl[:, :, 5], imstack_exp_bl[:, :, 5], imstack_exp_bl[:, :, 5]), axis=2)
-    imstack_iso -= bl_isoln[None, None, :]
+    imstack_iso -= bl_isoln.astype(float)[None, None, :]
 
     # Average
     mask_zenith = 5
@@ -246,8 +247,8 @@ if __name__ == "__main__":
     # Pearson coefficient
     p = pearson_coefficient(exptil[0, :], alldata_exp)  # exposure time
     p_iso = pearson_coefficient(isotil[0, :], alldata_iso)  # iso gain
-    p = p ** 2
-    p_iso = p_iso ** 2
+    #p = p ** 2
+    #p_iso = p_iso ** 2
 
     # Color separation
     nummean = 4
@@ -255,29 +256,37 @@ if __name__ == "__main__":
     alldata_iso_cl = maskdatacolor(imstack_iso, nummean, zen, mask_zenith)
 
     # Figures
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
 
     # Figure 2
     #fig2 = plt.figure(figsize=ff.set_size(fraction=0.7, height_ratio=0.75))
     fig2 = plt.figure(figsize=ff.set_size(fraction=0.6, height_ratio=0.75))
     ax2 = fig2.add_subplot(111)
     alphisto = 0.7
+    #axtwin = ax2.twiny()
 
-    ax2.hist(p, range=(0.92, 1.00), bins=100, alpha=alphisto, color="k", label="integration time")
-    ax2.hist(p_iso, range=(0.92, 1.00), bins=100, alpha=alphisto, color="gray", label="ISO gain")
+    #axtwin.hist(p, range=(0.92, 1.00), bins=100, alpha=alphisto, color="k", label="integration time")
+    #axtwin.hist(p, range=(0.96, 1.00), bins=100, alpha=alphisto, color="k", label="integration time")
+    ax2.hist(p, range=(0.96, 1.00), bins=100, alpha=alphisto, color="k", label="integration time")
+    ax2.hist(p_iso, range=(0.96, 1.00), bins=100, alpha=alphisto, color="gray", label="ISO gain")
     ax2.axvline(p.mean(), color="k", linestyle="--", alpha=alphisto)
     ax2.axvline(p_iso.mean(), color="gray", linestyle="--", alpha=alphisto)
-    ax2.annotate('$\overline{{R}}_{{t}}^2={0:.3f}$'.format(p.mean()), xy=(p.mean(), 400), xytext=(-150, 0),
+    ax2.annotate('$\overline{{r}}_{{t}}={0:.4f}$'.format(p.mean()), xy=(p.mean(), 400), xytext=(-150, 0),
                  textcoords="offset points", fontsize=8, arrowprops=dict(arrowstyle='->'))
-    ax2.annotate('$\overline{{R}}_{{ISO}}^2={0:.3f}$'.format(p_iso.mean()), xy=(p_iso.mean(), 200), xytext=(-100, 0),
+    #ax2.annotate('$\overline{{R}}_{{t}}^2={0:.3f}$'.format(p.mean()), xy=(p.mean(), 400), xytext=(-150, 0),
+    #             textcoords="offset points", fontsize=8, arrowprops=dict(arrowstyle='->'))
+    ax2.annotate('$\overline{{r}}_{{S_{{ISO}}}}={0:.4f}$'.format(p_iso.mean()), xy=(p_iso.mean(), 200), xytext=(-100, 0),
                  textcoords="offset points", fontsize=8, arrowprops=dict(arrowstyle='->'))
+    #ax2.annotate('$\overline{{R}}_{{ISO}}^2={0:.3f}$'.format(p_iso.mean()), xy=(p_iso.mean(), 200), xytext=(-100, 0),
+    #             textcoords="offset points", fontsize=8, arrowprops=dict(arrowstyle='->'))
 
     ax2.set_yscale("log")
     ax2.set_ylim(None, 30000)
 
-    ax2.text(0.92, 1000, "{0} individual pixels".format(p.shape[0]), fontsize=8)
+    ax2.text(0.96, 1000, "{0} individual pixels".format(p.shape[0]), fontsize=8)
 
-    ax2.set_xlabel("Squared Pearson coefficient $R^2$")
+    #ax2.set_xlabel("Squared Pearson coefficient $R^2$")
+    ax2.set_xlabel("Pearson coefficient $r$")
     ax2.set_ylabel("Counts")
 
     ax2.legend(loc="upper left")
@@ -452,5 +461,7 @@ if __name__ == "__main__":
     optics_correspondance = {"c": "close", "f": "far"}
     fig2.savefig("figures/linearity-histogram-{}.pdf".format(optics_correspondance[answer.lower()]), format="pdf", dpi=600)
     fig2.savefig("figures/linearity-histogram-{}.png".format(optics_correspondance[answer.lower()]), format="png", dpi=600)
+    fig2.savefig("figures/linearity-histogram-{}.jpg".format(optics_correspondance[answer.lower()]), format="jpg", dpi=600)
+
 
     plt.show()

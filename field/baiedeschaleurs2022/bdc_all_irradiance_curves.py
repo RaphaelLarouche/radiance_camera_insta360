@@ -19,7 +19,7 @@ from source.radiance import RadClass
 
 
 # Function and classes
-def load_dict_from_hdf5(filename="data/baiedeschaleurs-03232022.h5"):
+def load_dict_from_hdf5(filename="data/baiedeschaleurs-03232022-imf-fluo.h5"):
     """
     ....
     """
@@ -210,7 +210,7 @@ def generate_graph(ed_tuple, eu_tuple, eo_tuple, stations_list):
 if __name__ == "__main__":
 
     # Load data
-    data = load_dict_from_hdf5(filename="data/baiedeschaleurs-03232022.h5")
+    data = load_dict_from_hdf5(filename="data/baiedeschaleurs-03232022-imf-fluo.h5")
 
     # Create irradiance data
     label_st1 = list(create_label("data/station_1_data.txt").keys())

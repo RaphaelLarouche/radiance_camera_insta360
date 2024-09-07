@@ -9,6 +9,8 @@ import glob
 import h5py
 import pandas
 import numpy as np
+import matplotlib
+matplotlib.use('MacOSX')
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation as R
 

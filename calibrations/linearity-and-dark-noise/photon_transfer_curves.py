@@ -9,6 +9,8 @@ import numpy as np
 import scipy.stats
 import natsort
 import scipy.optimize
+import matplotlib
+matplotlib.use("macosx")
 import matplotlib.pyplot as plt
 
 from characterization_darkframe import create_dict
@@ -74,7 +76,8 @@ if __name__ == "__main__":
     processimage = ProcessImage()
 
     # if windows:
-    volume_path = processimage.folder_choice()
+    #volume_path = processimage.folder_choice()
+    volume_path = "/Volumes/MYBOOK/"
     #filepath_exp = volume_path + "data-i360/calibrations/linearity/integration-time/"
     filepath_exp = volume_path + "data-i360-tests/calibrations/linearity/integration-time/09102020/"
     #filepath_dark_1sec = volume_path + "data-i360/calibrations/darkframe/integration-time/1_1s/"
@@ -225,7 +228,7 @@ if __name__ == "__main__":
     # NER - noise equivalent radiance
     #ptf = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) + "/calibrations/absolute-spectral-radiance/calibrationfiles/absolute_radiance.h5"
     #tag = "lens-close/20200909/cal-coefficients"
-    ptf = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) + "/calibrations/absolute-spectral-radiance/calibrationfiles/absolute_radiance_fluorolog.h5"
+    ptf = os.path.dirname(os.path.dirname(os.path.dirname(__file__))) + "/calibrations/absolute-spectral-radiance/calibrationfiles/absolute_radiance_imf_fluorolog.h5"
     tag = "lens-close/20200908/cal-coefficients"
     with h5py.File(ptf) as hfrel:
         cal = hfrel[tag][:]
@@ -236,6 +239,10 @@ if __name__ == "__main__":
     NER = np.array([(signal_for_SNR(1, np.array([read_noise[0], fpn_fit_r[0][0], gain_popt_r[0]])) / (t_int * iso)) * cal[0],
                     (signal_for_SNR(1, popt_fit_all_g) / (t_int * iso)) * cal[1],
                     (signal_for_SNR(1, popt_fit_all_b) / (t_int * iso)) * cal[2]])
+
+    NER_snr3 = np.array([(signal_for_SNR(3.0, np.array([read_noise[0], fpn_fit_r[0][0], gain_popt_r[0]])) / (t_int * iso)) * cal[0],
+                    (signal_for_SNR(3.0, popt_fit_all_g) / (t_int * iso)) * cal[1],
+                    (signal_for_SNR(3.0, popt_fit_all_b) / (t_int * iso)) * cal[2]])
 
     # Figures
     # Fig 1 - total noise vs. count

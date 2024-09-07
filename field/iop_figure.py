@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from meta_dict import meta_dict
+from field.similarity_param.meta_dict import meta_dict
 
 conditions = meta_dict['conditions'].keys()
 fig, ax = plt.subplots()
@@ -25,7 +25,7 @@ for condition in conditions:
     x_pos += 1
 plt.ylabel('Scattering coefficient [m$^{-1}$]')
 ax.set_xticks(np.arange(0, len(conditions)))
-ax.set_xticklabels(conditions, rotation = -30   , ha='left')
+ax.set_xticklabels(conditions, rotation =-30, ha='left')
 plt.semilogy()
 plt.legend()
 plt.show()

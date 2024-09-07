@@ -54,14 +54,14 @@ def load_zenith_radiance(path):
     :param path:
     :return:
     """
-    with open(path + "\hermes.pickle", 'rb') as handle:
+    with open(path + "/hermes.pickle", 'rb') as handle:
         hermes = pickle.load(handle)
 
     depths = hermes['zetanom']
     run_bands = hermes['run_bands']
 
     zenith_radiance = np.zeros((len(depths) + 1, 19, len(run_bands)))  # 3D array to store [depth, zenith angle, wvlgth]
-    raw_zenith_radiance = np.loadtxt(path + r"\zenith_profiles.txt")
+    raw_zenith_radiance = np.loadtxt(path + r"/zenith_profiles.txt")
 
     for i, wavelength in enumerate(run_bands):
         to_be_reshaped = raw_zenith_radiance[raw_zenith_radiance[:, 2] == wavelength, :]
@@ -181,7 +181,7 @@ def graph_radiance_cam_vs_simulations_pts(radclass_obj, hl_data, depths):
     return fig, ax, all_rad_cam, all_rad_sim
 
 
-def graph_radiance_cam_vs_simulations(radclass_obj, hl_data, depths, sm=False):
+def graph_radiance_cam_vs_simulations(radclass_obj, hl_data, depths, sm=False, wl_cam=np.array([600, 540, 480])):
 
     # Figure creation
     fig = plt.figure(figsize=(6.6929, 5.74))
@@ -222,7 +222,7 @@ def graph_radiance_cam_vs_simulations(radclass_obj, hl_data, depths, sm=False):
 
     wl_hl = np.array([600, 540, 480])
     #wl_cam = np.array([603, 544, 484])
-    wl_cam = np.array([600, 540, 480])
+    #wl_cam = np.array([600, 540, 480])
 
     for i, de in enumerate(depths):
 

@@ -87,13 +87,11 @@ if __name__ == "__main__":
     processim = ProcessImage()
 
     # Parameters
-    cover = "cover"
-    sn = "2BW7X7"
-    #sn = "2C9JCA"
-    wlens = "front"
-    #wlens = "front"
-    #date = "20230212"
-    date = "20230413"
+    cover = "nocover"
+    #sn = "2BW7X7"
+    sn = "2C9JCA"
+    wlens = "back"
+    date = "20230404"
     med = "water"
 
     npixel = 15
@@ -114,7 +112,7 @@ if __name__ == "__main__":
     #geo_calib_air = h5py.File("../geometric-calibration/calibrationfiles/geometric-calibration-2W7X7-air.h5", "r")
     #geo_calib = h5py.File(f"../geometric-calibration/calibrationfiles/geometric-calibration-{sn}.h5", "r")
     geocalib = h5py.File(f"../geometric-calibration/calibrationfiles/geometric-calibration-{sn}.h5", "r")
-    geo_id = calibrations.calibrations_info.geometric[f"{sn}"][f"{cover}"]["water"][f"{wlens}"]
+    geo_id = calibrations.calibrations_info.geometric[f"{sn}"][f"{cover}"][f"{med}"][f"{wlens}"]
     geocalib = geocalib[f"{med}/{cover}/{wlens}/{geo_id}"]
 
     geo = {}

@@ -76,7 +76,8 @@ if __name__ == "__main__":
     pim = ProcessImage()
 
     # Chose profile
-    path_to_data = pim.folder_choice(r"D:\data-i360\field\baideschaleurs-03232022")
+    #path_to_data = pim.folder_choice(r"D:\data-i360\field\baideschaleurs-03232022")
+    path_to_data = "/Volumes/MYBOOK/data-i360/field/baideschaleurs-03232022/station_4"
     impath = glob.glob(path_to_data + "/*.dng")
     impath.sort()
 
@@ -91,7 +92,7 @@ if __name__ == "__main__":
     station = os.path.basename(path_to_data)
 
     # Figure pre-allocation
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
     fig1, ax1 = plt.subplots(2, 3, sharex=True, figsize=(8, 4.59))
 
     # Colormap
@@ -169,7 +170,7 @@ if __name__ == "__main__":
 
     # Saving data
     #save_radiance_data(station, rad)
-    save_radiance_data(station, rad, path_name="data/baiedeschaleurs-03232022-fluo.h5")
+    save_radiance_data(station, rad, path_name="data/baiedeschaleurs-03232022-imf-fluo.h5")
 
     # Figure 1
     ax1[0, 0].set_ylabel(r"$\overline{{L}}$ [$\mathrm{{W \cdot m^{{-2}}  \cdot sr^{{-1}}\cdot nm^{{-1}}}}$]")

@@ -7,6 +7,8 @@
 # Module importation
 import h5py
 import numpy as np
+import matplotlib
+matplotlib.use('macosx')
 import matplotlib.pyplot as plt
 
 import source.processing as processing
@@ -81,10 +83,10 @@ if __name__ == "__main__":
     # 2C9JCA
     geo_calib_2C9 = h5py.File(f"calibrationfiles/geometric-calibration-2C9JCA.h5", "r")
 
-    calib_list_2C9 = ["air/nocover/front/20230322_150036", "water/nocover/front/20230404_114030",
+    calib_list_2C9 = ["air/nocover/front/20230322_150036", "air/nocover/back/20230322_153728", "water/nocover/front/20230404_114030",
                       "water/nocover/back/20230404_115610"]
 
-    ls_2 = {"air/nocover/front/20230322_150036": "-",
+    ls_2 = {"air/nocover/front/20230322_150036": "-", "air/nocover/back/20230322_153728": "-",
             "water/nocover/front/20230404_114030": "-.", "water/nocover/back/20230404_115610": "-."}
 
     fig2, ax2 = plt.subplots(1, 3, sharey=True, sharex=True)
@@ -101,7 +103,8 @@ if __name__ == "__main__":
 
             # Max points
             rpoints, _, _, _, _, _ = geo[k].reprojection_errors(geo[k].fisheye_params)
-            rho = np.linspace(0, rpoints.max(), 500)
+            #rho = np.linspace(0, rpoints.max(), 500)
+            rho = np.linspace(0, 1496, 500)
 
             zenith_interp = np.interp(rho, res[0], res[1])
 

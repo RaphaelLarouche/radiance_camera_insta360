@@ -68,7 +68,12 @@ def process_jpg(images_list):
         exp.append(exposure)
         iso.append(isospeed)
 
-    return exp, iso, depth, depth_image
+    # Sort
+    asort = np.argsort(np.array([float(i) for i in depth]))
+    depth_image = depth_image[asort, :, :]
+    depth = np.array([float(i) for i in depth])
+
+    return np.array(exp)[asort], np.array(iso)[asort], depth[asort], depth_image
 
 
 def process_rgb_images(path, radclass, start=0, interpo=True):
@@ -82,10 +87,9 @@ def process_rgb_images(path, radclass, start=0, interpo=True):
     image_list = glob.glob(path + "/*.jpg")
     image_list = image_list[start:]
 
-    _, _, d, d_image = process_jpg(image_list)
-
+    _, _, defl, d_image = process_jpg(image_list)
     # Check_depth
-    defl = np.array([float(i) for i in d])
+    #defl = np.array([float(i) for i in d])
     mask = np.in1d(radclass.K_d["depth"], defl)
 
     kdown = radclass.K_d[mask]
@@ -106,6 +110,7 @@ def process_rgb_images(path, radclass, start=0, interpo=True):
             for b in range(new_rgb_ima.shape[2]):
                 f = scipy.interpolate.interp1d(defl, rgb_ima[:, 0, b], kind='nearest')
                 new_rgb_ima[:, 0, b] = f(new_z)
+                #print(new_rgb_ima)
 
             rgb_ima = new_rgb_ima.copy()
             defl = new_z.copy()

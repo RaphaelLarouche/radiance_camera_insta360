@@ -4,6 +4,7 @@ Phase functions for HL simulations.
 """
 
 # Module importation
+import os
 import numpy as np
 from scipy.integrate import quad
 import matplotlib.pyplot as plt
@@ -95,7 +96,7 @@ if __name__ == "__main__":
     print(g_tthg)
 
     # Figure
-    plt.style.use("../../figurestyle.mplstyle")
+    plt.style.use(os.path.abspath(os.path.join(__file__, "../../..")) + "/figurestyle.mplstyle")
     ff = FigureFunctions()
 
     #fig1, ax1 = plt.subplots(1, 1, figsize=ff.set_size(fraction=0.78))
@@ -113,7 +114,7 @@ if __name__ == "__main__":
 
     # Save figure
     fig1.tight_layout()
-    fig1.savefig("figures/pf.pdf", format="pdf", dpi=300)
-    fig1.savefig("figures/pf.png", format="png", dpi=300)
+    #fig1.savefig("figures/pf.pdf", format="pdf", dpi=300)
+    #fig1.savefig("figures/pf.png", format="png", dpi=300)
 
     plt.show()

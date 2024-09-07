@@ -56,7 +56,7 @@ def cops_irradiances(path=r"data/cops/BRML_220323_1511_C_data_001.tsv", wl=np.ar
 if __name__ == "__main__":
 
     # Load data
-    data = bdc_irradiance_fct.load_dict_from_hdf5(filename="data/baiedeschaleurs-03232022.h5")
+    data = bdc_irradiance_fct.load_dict_from_hdf5(filename="data/baiedeschaleurs-03232022-imf-fluo.h5")
 
     # Loop
     station_list = ["station_1", "station_2", "station_3", "station_4"]
